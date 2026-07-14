@@ -1,8 +1,25 @@
 import os
 import subprocess
 
+import re
+
 def get_download_info(url):
-    # 1. Check for new format: *.mpd*KID:KEY
+    # 1. Check for kid/key query parameters in URL (e.g. url?kid=KID&key=KEY or url&kid=KID&key=KEY)
+    if ".mpd" in url:
+        kid_match = re.search(r"[?&]kid=([0-9a-fA-F\-]{32,36})", url)
+        key_match = re.search(r"[?&]key=([0-9a-fA-F]{32})", url)
+        if kid_match and key_match:
+            kid = kid_match.group(1)
+            key = key_match.group(1)
+            # Clean URL by removing the kid/key query params
+            clean_url = re.sub(r"[?&]kid=[0-9a-fA-F\-]{32,36}", "", url)
+            clean_url = re.sub(r"[?&]key=[0-9a-fA-F]{32}", "", clean_url)
+            # Clean up potential malformed query parameters like mpd&something or mpd?&something
+            clean_url = re.sub(r"&+", "&", clean_url)
+            clean_url = clean_url.replace(".mpd&", ".mpd?").rstrip("?&")
+            return clean_url, f"--key {kid}:{key}"
+
+    # 2. Check for new format: *.mpd*KID:KEY
     if ".mpd" in url and "*" in url:
         parts = url.split("*", 1)
         if len(parts) == 2:
@@ -12,7 +29,7 @@ def get_download_info(url):
                 kid, key = key_data.split(":", 1)
                 return clean_url, f"--key {kid.strip()}:{key.strip()}"
     
-    # 2. Fallback for old format: #keysV1=
+    # 3. Fallback for old format: #keysV1=
     url_clean = url.split("#keysV1=")[0]
     keys_part = url.split("#keysV1=")[1] if "#keysV1=" in url else ""
     return url_clean, keys_part
