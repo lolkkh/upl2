@@ -34,14 +34,19 @@ RUN wget -q https://github.com/axiomatic-systems/Bento4/archive/v1.6.0-639.zip &
     cd /app && \
     rm -rf Bento4-1.6.0-639 v1.6.0-639.zip
 
-# 3. Install N_m3u8DL-RE (Auto-fetches Latest Release)
+# 3. Install N_m3u8DL-RE (Stable Release Fetcher)
 RUN apk add --no-cache jq && \
     LATEST_URL=$(wget -qO- "https://api.github.com/repos/nilaoda/N_m3u8DL-RE/releases/latest" | jq -r '.assets[] | select(.name | contains("linux-x64")) | .browser_download_url') && \
-    wget -q "$LATEST_URL" -O N_m3u8DL-RE.zip && \
-    unzip N_m3u8DL-RE.zip && \
-    chmod +x N_m3u8DL-RE && \
-    mv N_m3u8DL-RE /usr/local/bin/ && \
-    rm N_m3u8DL-RE.zip && \
+    echo "Downloading from: $LATEST_URL" && \
+    wget -q "$LATEST_URL" -O /tmp/nre-download && \
+    if file /tmp/nre-download | grep -q "Zip archive"; then \
+        unzip /tmp/nre-download -d /tmp/nre-extract && \
+        mv /tmp/nre-extract/N_m3u8DL-RE /usr/local/bin/; \
+    else \
+        mv /tmp/nre-download /usr/local/bin/N_m3u8DL-RE; \
+    fi && \
+    chmod +x /usr/local/bin/N_m3u8DL-RE && \
+    rm -rf /tmp/nre-download /tmp/nre-extract && \
     apk del jq
 
 # 4. Install Python Dependencies
