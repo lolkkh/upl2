@@ -214,7 +214,17 @@ async def drm_handler(bot: Client, m: Message):
         
         # Check if it's a URL
         if "://" in text:
-            lines = [text]
+            # Check if Name =>> and Url =>> pattern is present (multiline or single)
+            matches = re.findall(r"(?:Name\s*=>>\s*(.*?)\n)?Url\s*=>>\s*(https?://\S+)", text, re.IGNORECASE)
+            if matches:
+                lines = []
+                for name, url in matches:
+                    if name:
+                        lines.append(f"{name.strip()}:{url.strip()}")
+                    else:
+                        lines.append(url.strip())
+            else:
+                lines = [line.strip() for line in text.split("\n") if line.strip() and "://" in line]
             path = f"./downloads/{m.chat.id}"
             os.makedirs(path, exist_ok=True)
         else:
@@ -223,12 +233,12 @@ async def drm_handler(bot: Client, m: Message):
     else:
         return
 
-    if m.document:
-        bot_username = (await bot.get_me()).username
-        if not db.is_user_authorized(m.chat.id, bot_username):
-            print(f"User ID not authorized", m.chat.id)
-            await bot.send_message(m.chat.id, f"<blockquote>__**Oopss! You are not a Premium member\nPLEASE /upgrade YOUR PLAN\nSend me your user id for authorization\nYour User id**__ - `{m.chat.id}`</blockquote>\n")
-            return
+    # Check Premium member authorization for both text and document inputs
+    bot_username = (await bot.get_me()).username
+    if not db.is_user_authorized(m.chat.id, bot_username):
+        print(f"User ID not authorized", m.chat.id)
+        await bot.send_message(m.chat.id, f"<blockquote>__**Oopss! You are not a Premium member\nPLEASE /upgrade YOUR PLAN\nSend me your user id for authorization\nYour User id**__ - `{m.chat.id}`</blockquote>\n")
+        return
   
 
     autotopic_mode = False
@@ -637,8 +647,8 @@ async def drm_handler(bot: Client, m: Message):
                      url = "https://" + Vxy
             link0 = url
 
-            # CW Helper Integration (Supports both #keysV1= and *.mpd*KID:KEY)
-            if "#keysV1=" in url or (".mpd" in url and "*" in url):
+            # CW Helper Integration (Supports #keysV1=, *.mpd*KID:KEY, and .mpd with kid/key params)
+            if "#keysV1=" in url or (".mpd" in url and ("*" in url or ("kid=" in url and "key=" in url))):
                 url_clean, keys_str = cw_helper.get_download_info(url)
                 if keys_str:
                      url = url_clean
@@ -2369,4 +2379,7 @@ async def drm_handler(bot: Client, m: Message):
         else:
             await bot.send_message(channel_id, f"<b>-┈━═.•°✅ Completed ✅°•.═━┈-</b>\n<blockquote><b>🎯Batch Name : {b_name}</b></blockquote>\n<blockquote>🔗 Total URLs: {len(links)} \n┃   ┠🔴 Total Failed URLs: {failed_count}\n┃   ┠🟢 Total Successful URLs: {success_count}\n┃   ┃   ┠🎥 Total Video URLs: {video_count}\n┃   ┃   ┠📄 Total PDF URLs: {pdf_count}\n┃   ┃   ┠📸 Total IMAGE URLs: {img_count}</blockquote>\n")
             await bot.send_message(m.chat.id, f"<blockquote><b>✅ Your Task is completed, please check your Set Channel📱</b></blockquote>")
+    else:
+        # Send task completion notification for direct text URLs
+        await bot.send_message(m.chat.id, f"<b>-┈━═.•°✅ Completed ✅°•.═━┈-</b>\n<blockquote>🔗 Total URLs: {len(links)} \n┃   ┠🔴 Total Failed URLs: {failed_count}\n┃   ┠🟢 Total Successful URLs: {success_count}\n┃   ┃   ┠🎥 Total Video URLs: {video_count}\n┃   ┃   ┠📄 Total PDF URLs: {pdf_count}\n┃   ┃   ┠📸 Total IMAGE URLs: {img_count}</blockquote>\n")
 
