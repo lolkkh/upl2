@@ -2123,7 +2123,7 @@ async def drm_handler(bot: Client, m: Message):
                     if success:
                         continue  
 
-                elif ('drmcdni' in url or 'drm/wv' in url or 'drm/common' in url) or (mpd is not None and keys_string):
+                elif mpd and keys_string:
                     current_error_msg = None
                     retry_msg = None
                     prog = None
@@ -2223,7 +2223,43 @@ async def drm_handler(bot: Client, m: Message):
                     
                     if success:
                         continue
-     
+
+
+                else:
+                    # ✅ SAFETY NET FOR DIRECT DRM LINKS
+                    if mpd and keys_string:
+                        print(f" Fallback Triggered: Direct DRM Link detected, forcing N_m3u8DL-RE")
+                        res_file = await cw_helper.download_video_with_nre(mpd, keys_string, name)
+                        if res_file:
+                            filename = res_file
+                            if prog1:
+                                try: await prog1.delete(True)
+                                except: pass
+                            if prog:
+                                try: await prog.delete(True)
+                                except: pass
+                            await helper.send_vid(bot, m, cc, filename, vidwatermark, thumb, name, prog, channel_id, message_thread_id=upload_thread_id)
+                            
+                            success = True
+                            count += 1
+                            await asyncio.sleep(1)
+                            continue  # ⚠️ IMPORTANT: Yahan continue lagana zaroori hai taaki yt-dlp na chale
+                        else:
+                            raise Exception("N_m3u8DL-RE failed to download DRM video")
+
+                    # 👇 Iske NICHE aapka purana yt-dlp wala code same rahega...
+                    current_error_msg = None
+                    retry_msg = None
+                    prog = None
+                    prog1 = None
+                    success = False
+                    
+                    for attempt in range(1, 4): 
+                        # ... yahan se aapka existing code same rahega ...
+
+
+
+                
                 else:
                     current_error_msg = None
                     retry_msg = None
