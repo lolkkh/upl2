@@ -34,12 +34,15 @@ RUN wget -q https://github.com/axiomatic-systems/Bento4/archive/v1.6.0-639.zip &
     cd /app && \
     rm -rf Bento4-1.6.0-639 v1.6.0-639.zip
 
-# 3. Install N_m3u8DL-RE (DRM Downloader)
-RUN wget -q https://github.com/nilaoda/N_m3u8DL-RE/releases/download/v0.2.0/N_m3u8DL-RE_linux-x64.zip && \
-    unzip N_m3u8DL-RE_linux-x64.zip && \
+# 3. Install N_m3u8DL-RE (Auto-fetches Latest Release)
+RUN apk add --no-cache jq && \
+    LATEST_URL=$(wget -qO- "https://api.github.com/repos/nilaoda/N_m3u8DL-RE/releases/latest" | jq -r '.assets[] | select(.name | contains("linux-x64")) | .browser_download_url') && \
+    wget -q "$LATEST_URL" -O N_m3u8DL-RE.zip && \
+    unzip N_m3u8DL-RE.zip && \
     chmod +x N_m3u8DL-RE && \
     mv N_m3u8DL-RE /usr/local/bin/ && \
-    rm N_m3u8DL-RE_linux-x64.zip
+    rm N_m3u8DL-RE.zip && \
+    apk del jq
 
 # 4. Install Python Dependencies
 RUN pip3 install --no-cache-dir --upgrade pip setuptools && \
