@@ -172,132 +172,99 @@ import subprocess
 from pathlib import Path
 
 async def decrypt_and_merge_video(mpd_url, keys_string, output_path, output_name, quality="720"):
-    """
-    Decrypts DRM protected MPD video using N_m3u8DL-RE or fallback yt-dlp+mp4decrypt
-    """
     try:
         output_path = Path(output_path)
         output_path.mkdir(parents=True, exist_ok=True)
-        
-        final_file = output_path / f"{output_name}.mp4"
-        
-        print(f"🔐 Starting DRM Decryption for: {output_name}")
-        print(f"   MPD: {mpd_url[:80]}...")
-        print(f"   Keys: {keys_string}")
-        
-        # --- METHOD 1: N_m3u8DL-RE (Best for Modern DRM) ---
-        nre_check = subprocess.run(["which", "N_m3u8DL-RE"], capture_output=True, text=True)
-        if nre_check.returncode == 0 or os.path.exists("/usr/local/bin/N_m3u8DL-RE"):
-            cmd = f'N_m3u8DL-RE "{mpd_url}" {keys_string} --save-name "{output_name}" --tmp-dir "{output_path}" --save-dir "{output_path}" -mt'
-            print(f"🚀 Running N_m3u8DL-RE...")
-            
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-            
-            if result.returncode == 0 and final_file.exists():
-                print(f"✅ N_m3u8DL-RE Success: {final_file}")
-                return str(final_file)
-            else:
-                print(f"⚠️ N_m3u8DL-RE Failed: {result.stderr[:300]}")
-        
-        # --- METHOD 2: Legacy Fallback (yt-dlp + mp4decrypt) ---
-        print("🔄 Falling back to yt-dlp + mp4decrypt...")
-        
+
         if not shutil.which("mp4decrypt"):
-            print(" 'mp4decrypt' binary not found. Cannot proceed with legacy method.")
-            return None
-            
-        # Step A: Download encrypted fragments
-        dl_cmd = f'yt-dlp -f "bv[height<={quality}]+ba/b" -o "{output_path}/encrypted.%(ext)s" --allow-unplayable-formats --no-check-certificate "{mpd_url}"'
-        print(f"▶️ Downloading: {dl_cmd}")
+            print("❌ 'mp4decrypt' binary not found. This bot requires Bento4.")
+            # raise FileNotFoundError("❌ 'mp4decrypt' binary not found.") 
+            # Commented out raise to allow debugging if user wants to see what happens
+
+        print(f"🔑 Decryption Keys: {keys_string}") # DEBUG PRINT
+
+        # Step 1: Download with yt-dlp
+        cmd1 = f'yt-dlp -f "bv[height<={quality}]+ba/b" -o "{output_path}/file.%(ext)s" --allow-unplayable-formats --no-check-certificate --external-downloader aria2c --downloader-args "aria2c: -x 16 -j 16 -k 1M -s 16" "{mpd_url}"'
+        print(f"▶️ Downloading: {cmd1}")
         
-        dl_proc = subprocess.run(dl_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # Capture yt-dlp output
+        dl_proc = subprocess.run(cmd1, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if dl_proc.returncode != 0:
-             print(f" yt-dlp Download Failed: {dl_proc.stderr.decode()[:300]}")
+             print(f"❌ Download Failed: {dl_proc.stderr.decode()}")
              return None
 
-        # Step B: Detect downloaded files (FIXED LOGIC)
+        # Step 2: Detect downloaded files
         video_file = None
         audio_file = None
-        
         for f in output_path.iterdir():
-            fname = f.name.lower()
-            # Skip already processed files
-            if "decrypted" in fname or fname == f"{output_name}.mp4":
-                continue
-                
-            # Check for video streams (.mp4, .webm, .f*.mp4)
-            if f.suffix in [".mp4", ".webm"] and ("video" in fname or ".f" in fname):
+            if f.suffix in [".mp4", ".webm"] and not f.name.startswith("decrypted_") and not f.name == f"{output_name}.mp4":
                 video_file = f
-            # Check for audio streams (.m4a, .webm, .f*.m4a)  
-            elif f.suffix in [".m4a", ".webm"] and ("audio" in fname or ".f" in fname):
+            elif f.suffix in [".m4a", ".webm"] and not f.name.startswith("decrypted_") and not f.name == f"{output_name}.mp4":
                 audio_file = f
 
         if not video_file:
-             print("❌ No encrypted video file found after download.")
-             # List files for debugging
-             print(f"   Files in dir: {[f.name for f in output_path.iterdir()]}")
+             print("❌ Decryption failed: video file not found after download.")
              return None
         
-        print(f"📂 Found Video: {video_file.name} | Audio: {audio_file.name if audio_file else 'None'}")
+        print(f"📂 Found Video: {video_file} | Audio: {audio_file}")
 
-        # Step C: Decrypt using mp4decrypt
+        # Step 3: Decrypt
         decrypted_video = output_path / "decrypted_video.mp4"
         decrypted_audio = output_path / "decrypted_audio.m4a"
 
+        # Check if keys are present
         if not keys_string or keys_string.strip() == "":
-             print("️ WARNING: keys_string is empty!")
-             
-        key_args = keys_string.replace("--key ", "").split(" ")
-        
-        # Decrypt Video
-        cmd_v = ['mp4decrypt'] + [f"--key {k}" for k in key_args] + [str(video_file), str(decrypted_video)]
-        print(f"🔓 Decrypting Video...")
-        v_proc = subprocess.run(cmd_v, capture_output=True, text=True)
+             print("⚠️ WARNING: keys_string is empty! mp4decrypt will likely fail to decrypt.")
+
+        # Run mp4decrypt with capture
+        cmd_v = f'mp4decrypt {keys_string} "{video_file}" "{decrypted_video}"'
+        print(f"🔓 Decrypting Video: {cmd_v}")
+        v_proc = subprocess.run(cmd_v, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        print(f"📝 mp4decrypt stdout: {v_proc.stdout.decode()}")
+        print(f"📝 mp4decrypt stderr: {v_proc.stderr.decode()}")
         
         if v_proc.returncode != 0:
-             print(f"❌ mp4decrypt (Video) Failed: {v_proc.stderr[:300]}")
-             return None
+             print(f"❌ mp4decrypt (Video) Failed!")
 
-        # Decrypt Audio (if exists)
         if audio_file:
-            cmd_a = ['mp4decrypt'] + [f"--key {k}" for k in key_args] + [str(audio_file), str(decrypted_audio)]
-            print(f"🔓 Decrypting Audio...")
-            a_proc = subprocess.run(cmd_a, capture_output=True, text=True)
-            if a_proc.returncode != 0:
-                 print(f"⚠️ mp4decrypt (Audio) Failed: {a_proc.stderr[:300]}")
-                 decrypted_audio = None  # Continue without audio
+            cmd_a = f'mp4decrypt {keys_string} "{audio_file}" "{decrypted_audio}"'
+            print(f"🔓 Decrypting Audio: {cmd_a}")
+            a_proc = subprocess.run(cmd_a, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            # print(f"mp4decrypt audio stderr: {a_proc.stderr.decode()}")
 
-        # Cleanup encrypted originals
-        video_file.unlink(missing_ok=True)
+        # Cleanup original encrypted files to save space
+        if video_file: video_file.unlink(missing_ok=True)
         if audio_file: audio_file.unlink(missing_ok=True)
 
-        # Step D: Merge decrypted parts
-        merge_parts = ['-y', '-i', str(decrypted_video)]
-        if decrypted_audio and decrypted_audio.exists():
-            merge_parts += ['-i', str(decrypted_audio)]
-        merge_parts += ['-c', 'copy', str(final_file)]
+        # Step 4: Merge
+        final_file = output_path / f"{output_name}.mp4"
         
-        print(f"🔄 Merging...")
-        m_proc = subprocess.run(['ffmpeg'] + merge_parts, capture_output=True, text=True)
+        # Construct ffmpeg command
+        if decrypted_audio and decrypted_audio.exists():
+             cmd_merge = f'ffmpeg -y -i "{decrypted_video}" -i "{decrypted_audio}" -c copy "{final_file}"'
+        else:
+             cmd_merge = f'ffmpeg -y -i "{decrypted_video}" -c copy "{final_file}"'
+             
+        print(f"🔄 Merging: {cmd_merge}")
+        m_proc = subprocess.run(cmd_merge, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         
         if m_proc.returncode != 0:
-             print(f"❌ FFmpeg Merge Failed: {m_proc.stderr[:300]}")
+             print(f"❌ FFmpeg Merge Failed: {m_proc.stderr.decode()}")
+             # Don't return None yet, maybe video exists?
         
         # Cleanup decrypted intermediates
-        decrypted_video.unlink(missing_ok=True)
-        if decrypted_audio and decrypted_audio.exists(): decrypted_audio.unlink(missing_ok=True)
+        if decrypted_video.exists(): decrypted_video.unlink(missing_ok=True)
+        if decrypted_audio.exists(): decrypted_audio.unlink(missing_ok=True)
 
         if not final_file.exists():
-            print("❌ Final merged file not found.")
-            return None
+            print("❌ Merged video file not found.")
+            return None # raise FileNotFoundError("❌ Merged video file not found.")
 
-        print(f"✅ Legacy Decryption Success: {final_file}")
+        print(f"✅ Final video ready: {final_file}")
         return str(final_file)
-            
+
     except Exception as e:
         print(f"🔥 Error in decrypt_and_merge_video: {e}")
-        import traceback
-        traceback.print_exc()
         return None
 
 async def run(cmd):
@@ -1189,3 +1156,4 @@ async def download_and_extract_pdf(url, name):
             except:
                 pass
         return None
+
