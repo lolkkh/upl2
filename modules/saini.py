@@ -266,6 +266,7 @@ async def decrypt_and_merge_video(mpd_url, keys_string, output_path, output_name
     except Exception as e:
         print(f"🔥 Error in decrypt_and_merge_video: {e}")
         return None
+        
 
 async def run(cmd):
     proc = await asyncio.create_subprocess_shell(
@@ -294,6 +295,85 @@ def old_download(url, file_name, chunk_size = 1024 * 10):
             if chunk:
                 fd.write(chunk)
     return file_name
+
+
+
+
+
+import os
+import subprocess
+from pathlib import Path
+
+async def download_drm_direct_link(full_url_with_key, output_name="video"):
+    """
+    Handles URLs like: https://example.com/video.mpd*KID:KEY
+    """
+    try:
+        # 1. URL aur Key ko split karna
+        if '*' not in full_url_with_key:
+            print("❌ No '*' found in URL. Not a DRM link format.")
+            return None
+            
+        mpd_url, key_part = full_url_with_key.split('*', 1)
+        mpd_url = mpd_url.strip()
+        
+        if ':' not in key_part:
+            print("❌ Invalid Key format. Expected KID:KEY")
+            return None
+            
+        kid, key = key_part.split(':', 1)
+        kid = kid.strip()
+        key = key.strip()
+        
+        print(f"🔑 Detected DRM Link:\nMPD: {mpd_url}\nKID: {kid}")
+
+        # 2. Output path set karna
+        output_path = Path("downloads")
+        output_path.mkdir(parents=True, exist_ok=True)
+        final_file = output_path / f"{output_name}.mp4"
+
+        # 3. yt-dlp command with FFmpeg decryption
+        # Note: --allow-unplayable-formats zaroori hai encrypted streams ke liye
+        cmd = [
+            'yt-dlp',
+            '-f', 'bv+ba/b', # Best video + best audio
+            '-o', str(output_path / "temp.%(ext)s"),
+            '--allow-unplayable-formats',
+            '--no-check-certificates',
+            '--downloader', 'ffmpeg',
+            '--downloader-args', f'ffmpeg_i:-decryption_key {kid}:{key}',
+            '--merge-output-format', 'mp4',
+            mpd_url
+        ]
+
+        print(f"⬇️ Starting Download & Decryption...")
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        
+        if proc.returncode != 0:
+            print(f"❌ Download Failed: {proc.stderr.decode()}")
+            return None
+
+        # 4. Find the merged file (yt-dlp might name it temp.mp4 or similar)
+        for f in output_path.iterdir():
+            if f.name.startswith("temp") and f.suffix == ".mp4":
+                f.rename(final_file)
+                print(f"✅ Successfully downloaded and decrypted: {final_file}")
+                return str(final_file)
+                
+        print("❌ Downloaded file not found after process.")
+        return None
+
+    except Exception as e:
+        print(f"🔥 Error in download_drm_direct_link: {e}")
+        return None
+
+
+
+
+
+
+
+
 
 # appx zip ke liye 
 # helper.py
@@ -576,6 +656,11 @@ async def download_m3u8_async(url: str, filename: str):
         except Exception as e:
             print(f"🔥 Error in download_m3u8_async: {e}")
             return None
+
+
+
+
+
 
 # Run
 # asyncio.run(download_m3u8_async("your_m3u8_url", "video_name"))
@@ -1156,4 +1241,27 @@ async def download_and_extract_pdf(url, name):
             except:
                 pass
         return None
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
