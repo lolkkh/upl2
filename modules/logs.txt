@@ -1,0 +1,187 @@
+10-Mar-26 16:35:00 - ERROR - 'NoneType' object has no attribute 'strip' [dispatcher.py:253]
+Traceback (most recent call last):
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/dispatcher.py", line 240, in handler_worker
+    await handler.callback(self.client, *args)
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyromod/listen/listen.py", line 93, in resolve_listener
+    await self.user_callback(client, message, *args)
+  File "/home/wsl/mybot/uploader-testing-main/modules/main.py", line 979, in call_y2t_handler
+    await y2t_handler(bot, m)
+  File "/home/wsl/mybot/uploader-testing-main/modules/youtube_handler.py", line 171, in y2t_handler
+    youtube_link = input_message.text.strip()
+AttributeError: 'NoneType' object has no attribute 'strip'
+10-Mar-26 16:46:18 - ERROR - 'NoneType' object has no attribute 'mention' [dispatcher.py:253]
+Traceback (most recent call last):
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/dispatcher.py", line 240, in handler_worker
+    await handler.callback(self.client, *args)
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyromod/listen/listen.py", line 93, in resolve_listener
+    await self.user_callback(client, message, *args)
+  File "/home/wsl/mybot/uploader-testing-main/modules/main.py", line 81, in start
+    caption = f"🌟 Welcome {m.from_user.mention} ! 🌟"
+AttributeError: 'NoneType' object has no attribute 'mention'
+10-Mar-26 16:47:51 - ERROR - 'NoneType' object has no attribute 'mention' [dispatcher.py:253]
+Traceback (most recent call last):
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/dispatcher.py", line 240, in handler_worker
+    await handler.callback(self.client, *args)
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyromod/listen/listen.py", line 93, in resolve_listener
+    await self.user_callback(client, message, *args)
+  File "/home/wsl/mybot/uploader-testing-main/modules/main.py", line 81, in start
+    caption = f"🌟 Welcome {m.from_user.mention} ! 🌟"
+AttributeError: 'NoneType' object has no attribute 'mention'
+10-Mar-26 16:48:47 - ERROR - 'NoneType' object has no attribute 'mention' [dispatcher.py:253]
+Traceback (most recent call last):
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/dispatcher.py", line 240, in handler_worker
+    await handler.callback(self.client, *args)
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyromod/listen/listen.py", line 93, in resolve_listener
+    await self.user_callback(client, message, *args)
+  File "/home/wsl/mybot/uploader-testing-main/modules/main.py", line 81, in start
+    caption = f"🌟 Welcome {m.from_user.mention} ! 🌟"
+AttributeError: 'NoneType' object has no attribute 'mention'
+10-Mar-26 16:51:39 - ERROR - Telegram says: [400 USERNAME_INVALID] - The username is invalid (caused by "contacts.ResolveUsername") [dispatcher.py:253]
+Traceback (most recent call last):
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/methods/advanced/resolve_peer.py", line 62, in resolve_peer
+    return await self.storage.get_peer_by_id(peer_id)
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/storage/sqlite_storage.py", line 142, in get_peer_by_id
+    raise KeyError(f"ID not found: {peer_id}")
+KeyError: 'ID not found: /id -1003749774500'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/methods/advanced/resolve_peer.py", line 71, in resolve_peer
+    int(peer_id)
+ValueError: invalid literal for int() with base 10: '/id-1003749774500'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/methods/advanced/resolve_peer.py", line 74, in resolve_peer
+    return await self.storage.get_peer_by_username(peer_id)
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/storage/sqlite_storage.py", line 154, in get_peer_by_username
+    raise KeyError(f"Username not found: {username}")
+KeyError: 'Username not found: /id-1003749774500'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/dispatcher.py", line 240, in handler_worker
+    await handler.callback(self.client, *args)
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyromod/listen/listen.py", line 93, in resolve_listener
+    await self.user_callback(client, message, *args)
+  File "/home/wsl/mybot/uploader-testing-main/modules/main.py", line 1003, in call_drm_handler
+    await drm_handler(bot, m)
+  File "/home/wsl/mybot/uploader-testing-main/modules/drm_handler.py", line 2332, in drm_handler
+    await bot.send_message(channel_id, f"<b>-┈━═.•°✅ Completed ✅°•.═━┈-</b>\n<blockquote><b>🎯Batch Name : {b_name}</b></blockquote>\n<blockquote>🔗 Total URLs: {len(links)} \n┃   ┠🔴 Total Failed URLs: {failed_count}\n┃   ┠🟢 Total Successful URLs: {success_count}\n┃   ┃   ┠🎥 Total Video URLs: {video_count}\n┃   ┃   ┠📄 Total PDF URLs: {pdf_count}\n┃   ┃   ┠📸 Total IMAGE URLs: {img_count}</blockquote>\n")
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/methods/messages/send_message.py", line 128, in send_message
+    peer=await self.resolve_peer(chat_id),
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/methods/advanced/resolve_peer.py", line 76, in resolve_peer
+    await self.invoke(
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/methods/advanced/invoke.py", line 79, in invoke
+    r = await self.session.invoke(
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/session/session.py", line 389, in invoke
+    return await self.send(query, timeout=timeout)
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/session/session.py", line 357, in send
+    RPCError.raise_it(result, type(data))
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/errors/rpc_error.py", line 91, in raise_it
+    raise getattr(
+pyrogram.errors.exceptions.bad_request_400.UsernameInvalid: Telegram says: [400 USERNAME_INVALID] - The username is invalid (caused by "contacts.ResolveUsername")
+10-Mar-26 17:09:10 - ERROR - 'NoneType' object has no attribute 'mention' [dispatcher.py:253]
+Traceback (most recent call last):
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/dispatcher.py", line 240, in handler_worker
+    await handler.callback(self.client, *args)
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyromod/listen/listen.py", line 93, in resolve_listener
+    await self.user_callback(client, message, *args)
+  File "/home/wsl/mybot/uploader-testing-main/modules/main.py", line 81, in start
+    caption = f"🌟 Welcome {m.from_user.mention} ! 🌟"
+AttributeError: 'NoneType' object has no attribute 'mention'
+10-Mar-26 17:12:29 - ERROR - Telegram says: [406 CHANNEL_PRIVATE] - The channel/supergroup is not accessible (caused by "messages.SendMessage") [dispatcher.py:253]
+Traceback (most recent call last):
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/dispatcher.py", line 240, in handler_worker
+    await handler.callback(self.client, *args)
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyromod/listen/listen.py", line 93, in resolve_listener
+    await self.user_callback(client, message, *args)
+  File "/home/wsl/mybot/uploader-testing-main/modules/main.py", line 1003, in call_drm_handler
+    await drm_handler(bot, m)
+  File "/home/wsl/mybot/uploader-testing-main/modules/drm_handler.py", line 2332, in drm_handler
+    await bot.send_message(channel_id, f"<b>-┈━═.•°✅ Completed ✅°•.═━┈-</b>\n<blockquote><b>🎯Batch Name : {b_name}</b></blockquote>\n<blockquote>🔗 Total URLs: {len(links)} \n┃   ┠🔴 Total Failed URLs: {failed_count}\n┃   ┠🟢 Total Successful URLs: {success_count}\n┃   ┃   ┠🎥 Total Video URLs: {video_count}\n┃   ┃   ┠📄 Total PDF URLs: {pdf_count}\n┃   ┃   ┠📸 Total IMAGE URLs: {img_count}</blockquote>\n")
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/methods/messages/send_message.py", line 126, in send_message
+    r = await self.invoke(
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/methods/advanced/invoke.py", line 79, in invoke
+    r = await self.session.invoke(
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/session/session.py", line 389, in invoke
+    return await self.send(query, timeout=timeout)
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/session/session.py", line 357, in send
+    RPCError.raise_it(result, type(data))
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/errors/rpc_error.py", line 91, in raise_it
+    raise getattr(
+pyrogram.errors.exceptions.not_acceptable_406.ChannelPrivate: Telegram says: [406 CHANNEL_PRIVATE] - The channel/supergroup is not accessible (caused by "messages.SendMessage")
+10-Mar-26 17:17:37 - ERROR - Telegram says: [406 CHANNEL_PRIVATE] - The channel/supergroup is not accessible (caused by "messages.SendMessage") [dispatcher.py:253]
+Traceback (most recent call last):
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/dispatcher.py", line 240, in handler_worker
+    await handler.callback(self.client, *args)
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyromod/listen/listen.py", line 93, in resolve_listener
+    await self.user_callback(client, message, *args)
+  File "/home/wsl/mybot/uploader-testing-main/modules/main.py", line 1003, in call_drm_handler
+    await drm_handler(bot, m)
+  File "/home/wsl/mybot/uploader-testing-main/modules/drm_handler.py", line 2332, in drm_handler
+    await bot.send_message(channel_id, f"<b>-┈━═.•°✅ Completed ✅°•.═━┈-</b>\n<blockquote><b>🎯Batch Name : {b_name}</b></blockquote>\n<blockquote>🔗 Total URLs: {len(links)} \n┃   ┠🔴 Total Failed URLs: {failed_count}\n┃   ┠🟢 Total Successful URLs: {success_count}\n┃   ┃   ┠🎥 Total Video URLs: {video_count}\n┃   ┃   ┠📄 Total PDF URLs: {pdf_count}\n┃   ┃   ┠📸 Total IMAGE URLs: {img_count}</blockquote>\n")
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/methods/messages/send_message.py", line 126, in send_message
+    r = await self.invoke(
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/methods/advanced/invoke.py", line 79, in invoke
+    r = await self.session.invoke(
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/session/session.py", line 389, in invoke
+    return await self.send(query, timeout=timeout)
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/session/session.py", line 357, in send
+    RPCError.raise_it(result, type(data))
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/errors/rpc_error.py", line 91, in raise_it
+    raise getattr(
+pyrogram.errors.exceptions.not_acceptable_406.ChannelPrivate: Telegram says: [406 CHANNEL_PRIVATE] - The channel/supergroup is not accessible (caused by "messages.SendMessage")
+10-Mar-26 20:23:30 - WARNING - BadMsgNotification: [33] The msg_seqno is too high. [session.py:360]
+10-Mar-26 20:23:31 - WARNING - BadMsgNotification: [33] The msg_seqno is too high. [session.py:360]
+10-Mar-26 20:46:09 - WARNING - BadMsgNotification: [33] The msg_seqno is too high. [session.py:360]
+10-Mar-26 20:49:50 - WARNING - BadMsgNotification: [33] The msg_seqno is too high. [session.py:360]
+10-Mar-26 20:49:50 - WARNING - BadMsgNotification: [33] The msg_seqno is too high. [session.py:360]
+10-Mar-26 20:51:56 - WARNING - BadMsgNotification: [33] The msg_seqno is too high. [session.py:360]
+10-Mar-26 20:51:58 - WARNING - BadMsgNotification: [33] The msg_seqno is too high. [session.py:360]
+10-Mar-26 20:52:10 - ERROR - 7615647528922382340 [save_file.py:111]
+Traceback (most recent call last):
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/methods/advanced/save_file.py", line 109, in worker
+    await session.invoke(data)
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/session/session.py", line 389, in invoke
+    return await self.send(query, timeout=timeout)
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/session/session.py", line 348, in send
+    result = self.results.pop(msg_id).value
+KeyError: 7615647528922382340
+10-Mar-26 20:54:49 - WARNING - BadMsgNotification: [33] The msg_seqno is too high. [session.py:360]
+10-Mar-26 20:54:49 - WARNING - BadMsgNotification: [33] The msg_seqno is too high. [session.py:360]
+10-Mar-26 20:54:49 - WARNING - BadMsgNotification: [33] The msg_seqno is too high. [session.py:360]
+10-Mar-26 20:54:49 - WARNING - BadMsgNotification: [33] The msg_seqno is too high. [session.py:360]
+10-Mar-26 20:56:06 - ERROR - 7615648538239696900 [save_file.py:111]
+Traceback (most recent call last):
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/methods/advanced/save_file.py", line 109, in worker
+    await session.invoke(data)
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/session/session.py", line 389, in invoke
+    return await self.send(query, timeout=timeout)
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/session/session.py", line 348, in send
+    result = self.results.pop(msg_id).value
+KeyError: 7615648538239696900
+10-Mar-26 20:56:07 - ERROR - 7615648542534664196 [save_file.py:111]
+Traceback (most recent call last):
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/methods/advanced/save_file.py", line 109, in worker
+    await session.invoke(data)
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/session/session.py", line 389, in invoke
+    return await self.send(query, timeout=timeout)
+  File "/home/wsl/.local/lib/python3.10/site-packages/pyrogram/session/session.py", line 348, in send
+    result = self.results.pop(msg_id).value
+KeyError: 7615648542534664196
+10-Mar-26 20:56:22 - WARNING - BadMsgNotification: [33] The msg_seqno is too high. [session.py:360]
+10-Mar-26 20:56:23 - WARNING - BadMsgNotification: [33] The msg_seqno is too high. [session.py:360]
+10-Mar-26 20:59:01 - WARNING - BadMsgNotification: [33] The msg_seqno is too high. [session.py:360]
+10-Mar-26 20:59:01 - WARNING - BadMsgNotification: [33] The msg_seqno is too high. [session.py:360]
+10-Mar-26 21:00:36 - WARNING - BadMsgNotification: [33] The msg_seqno is too high. [session.py:360]
+10-Mar-26 21:06:05 - WARNING - BadMsgNotification: [33] The msg_seqno is too high. [session.py:360]
+10-Mar-26 21:06:06 - WARNING - BadMsgNotification: [33] The msg_seqno is too high. [session.py:360]
+10-Mar-26 21:11:38 - WARNING - BadMsgNotification: [33] The msg_seqno is too high. [session.py:360]
+10-Mar-26 21:11:38 - WARNING - BadMsgNotification: [33] The msg_seqno is too high. [session.py:360]
+10-Mar-26 21:11:39 - WARNING - BadMsgNotification: [33] The msg_seqno is too high. [session.py:360]
+10-Mar-26 21:17:22 - WARNING - BadMsgNotification: [33] The msg_seqno is too high. [session.py:360]
+10-Mar-26 21:17:22 - WARNING - BadMsgNotification: [33] The msg_seqno is too high. [session.py:360]
