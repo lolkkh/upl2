@@ -4,6 +4,7 @@ WORKDIR /app
 
 COPY . .
 
+# 1. Basic tools + .NET runtime dependencies for Alpine
 RUN apk add --no-cache \
     gcc \
     libffi-dev \
@@ -14,8 +15,14 @@ RUN apk add --no-cache \
     g++ \
     cmake \
     wget \
-    unzip
+    unzip \
+    icu-libs \
+    krb5-libs \
+    libgcc \
+    libstdc++ \
+    zlib
 
+# 2. Install Bento4 (mp4decrypt)
 RUN wget -q https://github.com/axiomatic-systems/Bento4/archive/v1.6.0-639.zip && \
     unzip v1.6.0-639.zip && \
     cd Bento4-1.6.0-639 && \
@@ -27,12 +34,23 @@ RUN wget -q https://github.com/axiomatic-systems/Bento4/archive/v1.6.0-639.zip &
     cd /app && \
     rm -rf Bento4-1.6.0-639 v1.6.0-639.zip
 
+# 3. Install N_m3u8DL-RE (DRM Downloader)
+RUN wget -q https://github.com/nilaoda/N_m3u8DL-RE/releases/download/v0.2.0/N_m3u8DL-RE_linux-x64.zip && \
+    unzip N_m3u8DL-RE_linux-x64.zip && \
+    chmod +x N_m3u8DL-RE && \
+    mv N_m3u8DL-RE /usr/local/bin/ && \
+    rm N_m3u8DL-RE_linux-x64.zip
+
+# 4. Install Python Dependencies
 RUN pip3 install --no-cache-dir --upgrade pip setuptools && \
     pip3 install --no-cache-dir -r sainibots.txt && \
     python3 -m pip install --no-cache-dir -U yt-dlp
 
+# 5. Permissions and Environment Variables
 RUN chmod +x start.sh
 
 ENV PYTHONUNBUFFERED=1
+# This prevents .NET globalization errors on Alpine Linux
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 
 
 CMD ["sh", "start.sh"]
