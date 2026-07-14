@@ -195,31 +195,33 @@ async def drm_handler(bot: Client, m: Message):
         return (False, 1, 1)  # Should never reach here
 
     user_id = m.from_user.id
-if m.document and m.document.file_name.endswith('.txt'):
-    x = await m.download()
-    await bot.send_document(OWNER, x)
-    await m.delete(True)
-    file_name, ext = os.path.splitext(os.path.basename(x))
-    path = f"./downloads/{m.chat.id}"
-    os.makedirs(path, exist_ok=True)
-    with open(x, "r") as f:
-        content = f.read()
-    lines = content.split("\n")
-    os.remove(x)
-elif m.text:
-    # Direct text message handling
-    text = m.text.strip()
     
-    # Check if it's a URL
-    if "://" in text:
-        lines = [text]
+    # ✅ FIXED INDENTATION STARTS HERE
+    if m.document and m.document.file_name.endswith('.txt'):
+        x = await m.download()
+        await bot.send_document(OWNER, x)
+        await m.delete(True)
+        file_name, ext = os.path.splitext(os.path.basename(x))
         path = f"./downloads/{m.chat.id}"
         os.makedirs(path, exist_ok=True)
+        with open(x, "r") as f:
+            content = f.read()
+        lines = content.split("\n")
+        os.remove(x)
+    elif m.text:
+        # Direct text message handling
+        text = m.text.strip()
+        
+        # Check if it's a URL
+        if "://" in text:
+            lines = [text]
+            path = f"./downloads/{m.chat.id}"
+            os.makedirs(path, exist_ok=True)
+        else:
+            await m.reply_text("<b>🔹Invalid Input. Please send a valid URL or .txt file</b>")
+            return
     else:
-        await m.reply_text("<b>🔹Invalid Input. Please send a valid URL or .txt file</b>")
         return
-else:
-    return
 
     if m.document:
         bot_username = (await bot.get_me()).username
@@ -227,6 +229,7 @@ else:
             print(f"User ID not authorized", m.chat.id)
             await bot.send_message(m.chat.id, f"<blockquote>__**Oopss! You are not a Premium member\nPLEASE /upgrade YOUR PLAN\nSend me your user id for authorization\nYour User id**__ - `{m.chat.id}`</blockquote>\n")
             return
+  
 
     autotopic_mode = False
     pdf_count = 0
