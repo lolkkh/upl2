@@ -2132,103 +2132,81 @@ async def drm_handler(bot: Client, m: Message):
                     
                     for attempt in range(1, 4):  # 3 attempts
                         try:
-                            # Cleanup before retrying (if not first attempt)
                             if attempt > 1:
-                                if current_error_msg:
-                                    try:
-                                        await current_error_msg.delete(True)
-                                    except:
-                                        pass
-                                if retry_msg:
-                                    try:
-                                        await retry_msg.delete(True)
-                                    except:
-                                        pass
-                                if prog:
-                                    try:
-                                        await prog.delete(True)
-                                    except:
-                                        pass
-                                if prog1:
-                                    try:
-                                        await prog1.delete(True)
-                                    except:
-                                        pass
-                                
+                                for _msg in [current_error_msg, retry_msg, prog, prog1]:
+                                    if _msg:
+                                        try: await _msg.delete(True)
+                                        except: pass
                                 retry_msg = await bot.send_message(channel_id, f'🔄 **Retrying {attempt}/3**\n**Name** =>> `{str(count).zfill(3)} {name1}`')
                                 await asyncio.sleep(2)
 
                             remaining_links = len(links) - count
                             progress = (count / len(links)) * 100
-                            Show1 = f"<blockquote>🚀𝐏𝐫𝐨𝐠𝐫𝐞𝐬𝐬 » {progress:.2f}%</blockquote>\n┃\n" \
+                            Show1 = f"<blockquote>🚀𝐫𝐨𝐠𝐫𝐞𝐬𝐬 » {progress:.2f}%</blockquote>\n┃\n" \
                                    f"┣🔗𝐈𝐧𝐝𝐞𝐱 » {count}/{len(links)}\n┃\n" \
-                                   f"╰━🖇️𝐑𝐞𝐦𝐚𝐢𝐧 » {remaining_links}\n" \
+                                   f"╰━🖇️𝐑𝐞𝐚𝐢𝐧 » {remaining_links}\n" \
                                    f"━━━━━━━━━━━━━━━━━━━━━━━━\n" \
-                                   f"<blockquote><b>⚡Dᴏᴡɴʟᴏᴀᴅɪɴɢ Sᴛᴀʀᴛᴇᴅ...⏳</b></blockquote>\n┃\n" \
-                                   f'┣💃𝐂𝐫𝐞𝐝𝐢𝐭 » {CR}\n┃\n' \
-                                   f"╰━📚𝐁𝐚𝐭𝐜𝐡 » {b_name}\n" \
+                                   f"<blockquote><b>⚡Dᴏᴡɴʟᴏᴀᴅɪɴɢ Sᴛᴀʀᴛᴇ...⏳</b></blockquote>\n\n" \
+                                   f'┣𝐂𝐫𝐞𝐢𝐭 » {CR}\n┃\n' \
+                                   f"━📚𝐁𝐚𝐜𝐡 » {b_name}\n" \
                                    f"━━━━━━━━━━━━━━━━━━━━━━━━━\n" \
-                                   f"<blockquote>📚𝐓𝐢𝐭𝐥𝐞 » {namef}</blockquote>\n┃\n" \
-                                   f"┣🍁𝐐𝐮𝐚𝐥𝐢𝐭𝐲 » {quality}\n┃\n" \
-                                   f'┣━🔗𝐋𝐢𝐧𝐤 » <a href="{link0}">**Original Link**</a>\n┃\n' \
-                                   f'╰━━🖇️𝐔𝐫𝐥 » <a href="{url}">**Api Link**</a>\n' \
+                                   f"<blockquote>𝐓𝐢𝐥𝐞 » {namef}</blockquote>\n┃\n" \
+                                   f"┣🍁𝐐𝐚𝐥𝐢𝐲 » {quality}\n┃\n" \
+                                   f'┣━𝐋𝐢𝐧 » <a href="{link0}">**Original Link**</a>\n┃\n' \
+                                   f'╰━━🖇️𝐫𝐥 » <a href="{url}">**Api Link**</a>\n' \
                                    f"━━━━━━━━━━━━━━━━━━━━━━━━━\n" \
                                    f"🛑**Send** /stop **to stop process**\n┃\n" \
-                                   f"╰━✦𝐁𝐨𝐭 𝐌𝐚𝐝𝐞 𝐁𝐲 ✦ {CREDIT}"
+                                   f"╰━𝐁𝐨𝐭 𝐌𝐚𝐝𝐞 𝐁𝐲 ✦ {CREDIT}"
                             Show = f"<i><b>Video Downloading</b></i>\n<blockquote><b>{str(count).zfill(3)}) {name1}</b></blockquote>"
                             prog = await bot.send_message(channel_id, Show, disable_web_page_preview=True)
                             prog1 = await m.reply_text(Show1, disable_web_page_preview=True)
-                            res_file = await helper.decrypt_and_merge_video(mpd, keys_string, path, name, raw_text2)
+                            
+                            # ✅ DIRECT DRM DOWNLOAD VIA N_m3u8DL-RE
+                            print(f" Executing N_m3u8DL-RE for: {name1}")
+                            res_file = await cw_helper.download_video_with_nre(mpd, keys_string, name)
+                            
+                            if not res_file:
+                                raise Exception("N_m3u8DL-RE returned empty file")
+                                
                             filename = res_file
                             await prog1.delete(True)
                             await prog.delete(True)
                             await helper.send_vid(bot, m, cc, filename, vidwatermark, thumb, name, prog, channel_id, message_thread_id=upload_thread_id)
                             
-                            # Success! Cleanup messages
                             if retry_msg:
-                                try:
-                                    await retry_msg.delete(True)
-                                except:
-                                    pass
+                                try: await retry_msg.delete(True)
+                                except: pass
                             
                             success = True
                             count += 1
                             await asyncio.sleep(1)
-                            break  # Exit retry loop on success
+                            break
                             
                         except Exception as e:
                             if prog:
-                                try:
-                                    await prog.delete(True)
-                                except:
-                                    pass
+                                try: await prog.delete(True)
+                                except: pass
                             if prog1:
-                                try:
-                                    await prog1.delete(True)
-                                except:
-                                    pass
+                                try: await prog1.delete(True)
+                                except: pass
                             current_error_msg = await bot.send_message(channel_id, f'⚠️**Downloading Failed**⚠️\n**Name** =>> `{str(count).zfill(3)} {name1}`\n**Url** =>> {url}\n\n<blockquote expandable><i><b>Failed Reason: {str(e)}</b></i></blockquote>', disable_web_page_preview=True)
                             
-                            if attempt == 3:  # Last attempt failed
-                                # Clean up retry msg, keep only success/fail
+                            if attempt == 3:
                                 if retry_msg:
-                                    try:
-                                        await retry_msg.delete(True)
-                                    except:
-                                        pass
+                                    try: await retry_msg.delete(True)
+                                    except: pass
                                 count += 1
                                 failed_count += 1
                             else:
-                                await asyncio.sleep(3)  # Wait before retry
+                                await asyncio.sleep(3)
                     
                     if success:
                         continue
 
-
                 else:
-                    # ✅ SAFETY NET FOR DIRECT DRM LINKS
+                    # ✅ SAFETY NET FOR DIRECT DRM LINKS (Fallback)
                     if mpd and keys_string:
-                        print(f" Fallback Triggered: Direct DRM Link detected, forcing N_m3u8DL-RE")
+                        print(f"⚠️ Fallback Triggered: Direct DRM Link detected, forcing N_m3u8DL-RE")
                         res_file = await cw_helper.download_video_with_nre(mpd, keys_string, name)
                         if res_file:
                             filename = res_file
@@ -2243,24 +2221,11 @@ async def drm_handler(bot: Client, m: Message):
                             success = True
                             count += 1
                             await asyncio.sleep(1)
-                            continue  # ⚠️ IMPORTANT: Yahan continue lagana zaroori hai taaki yt-dlp na chale
+                            continue  # ️ IMPORTANT: Yahan continue lagana zaroori hai taaki yt-dlp na chale
                         else:
                             raise Exception("N_m3u8DL-RE failed to download DRM video")
 
-                    # 👇 Iske NICHE aapka purana yt-dlp wala code same rahega...
-                    current_error_msg = None
-                    retry_msg = None
-                    prog = None
-                    prog1 = None
-                    success = False
-                    
-                    for attempt in range(1, 4): 
-                        # ... yahan se aapka existing code same rahega ...
-
-
-
-                
-                else:
+                    #  Normal yt-dlp wala code yahan se shuru hoga...
                     current_error_msg = None
                     retry_msg = None
                     prog = None
@@ -2269,49 +2234,40 @@ async def drm_handler(bot: Client, m: Message):
                     
                     for attempt in range(1, 4):  # 3 attempts
                         try:
-                            # Cleanup before retrying (if not first attempt)
                             if attempt > 1:
                                 if current_error_msg:
-                                    try:
-                                        await current_error_msg.delete(True)
-                                    except:
-                                        pass
+                                    try: await current_error_msg.delete(True)
+                                    except: pass
                                 if retry_msg:
-                                    try:
-                                        await retry_msg.delete(True)
-                                    except:
-                                        pass
+                                    try: await retry_msg.delete(True)
+                                    except: pass
                                 if prog:
-                                    try:
-                                        await prog.delete(True)
-                                    except:
-                                        pass
+                                    try: await prog.delete(True)
+                                    except: pass
                                 if prog1:
-                                    try:
-                                        await prog1.delete(True)
-                                    except:
-                                        pass
+                                    try: await prog1.delete(True)
+                                    except: pass
                                 
                                 retry_msg = await bot.send_message(channel_id, f'🔄 **Retrying {attempt}/3**\n**Name** =>> `{str(count).zfill(3)} {name1}`')
                                 await asyncio.sleep(2)
 
                             remaining_links = len(links) - count
                             progress = (count / len(links)) * 100
-                            Show1 = f"<blockquote>🚀𝐏𝐫𝐨𝐠𝐫𝐞𝐬𝐬 » {progress:.2f}%</blockquote>\n┃\n" \
-                                   f"┣🔗𝐈𝐧𝐝𝐞𝐱 » {count}/{len(links)}\n┃\n" \
+                            Show1 = f"<blockquote>🚀𝐏𝐫𝐨𝐠𝐫𝐞𝐬𝐬 » {progress:.2f}%</blockquote>\n\n" \
+                                   f"┣𝐈𝐧𝐝𝐱 » {count}/{len(links)}\n┃\n" \
                                    f"╰━🖇️𝐑𝐞𝐦𝐚𝐢𝐧 » {remaining_links}\n" \
                                    f"━━━━━━━━━━━━━━━━━━━━━━━━\n" \
-                                   f"<blockquote><b>⚡Dᴏᴡɴʟᴏᴀᴅɪɴɢ Sᴛᴀʀᴛᴇᴅ...⏳</b></blockquote>\n┃\n" \
-                                   f'┣💃𝐂𝐫𝐞𝐝𝐢𝐭 » {CR}\n┃\n' \
+                                   f"<blockquote><b>Dᴏᴡɴʟᴀᴅɪɴɢ Sᴛᴀʀᴛᴇᴅ...⏳</b></blockquote>\n┃\n" \
+                                   f'┣💃𝐂𝐫𝐞𝐝𝐢𝐭 » {CR}\n\n' \
                                    f"╰━📚𝐁𝐚𝐭𝐜𝐡 » {b_name}\n" \
                                    f"━━━━━━━━━━━━━━━━━━━━━━━━━\n" \
-                                   f"<blockquote>📚𝐓𝐢𝐭𝐥𝐞 » {namef}</blockquote>\n┃\n" \
-                                   f"┣🍁𝐐𝐮𝐚𝐥𝐢𝐭𝐲 » {quality}\n┃\n" \
+                                   f"<blockquote>📚𝐢𝐭𝐥 » {namef}</blockquote>\n\n" \
+                                   f"┣𝐐𝐮𝐚𝐥𝐢𝐭𝐲 » {quality}\n┃\n" \
                                    f'┣━🔗𝐋𝐢𝐧𝐤 » <a href="{link0}">**Original Link**</a>\n┃\n' \
                                    f'╰━━🖇️𝐔𝐫𝐥 » <a href="{url}">**Api Link**</a>\n' \
                                    f"━━━━━━━━━━━━━━━━━━━━━━━━━\n" \
                                    f"🛑**Send** /stop **to stop process**\n┃\n" \
-                                   f"╰━✦𝐁𝐨𝐭 𝐌𝐚𝐝𝐞 𝐁𝐲 ✦ {CREDIT}"
+                                   f"╰━𝐁𝐨𝐭 𝐌𝐚𝐝𝐞 𝐁𝐲 ✦ {CREDIT}"
                             Show = f"<i><b>Video Downloading</b></i>\n<blockquote><b>{str(count).zfill(3)}) {name1}</b></blockquote>"
                             
                             time_since_last_msg = time.time() - last_msg_time
@@ -2322,7 +2278,7 @@ async def drm_handler(bot: Client, m: Message):
                             prog = await bot.send_message(channel_id, Show, disable_web_page_preview=True)
                             prog1 = await m.reply_text(Show1, disable_web_page_preview=True)
                             
-                            # CW / DRM Integration Check
+                            # CW / DRM Integration Check inside fallback
                             if (keys_string and mpd) or (mpd and ".m3u8" in str(mpd)):
                                 print(f"🔐 Executing CW/NRE Download for: {name1}")
                                 res_file = await cw_helper.download_video_with_nre(mpd, keys_string if keys_string else "", name)
@@ -2330,7 +2286,6 @@ async def drm_handler(bot: Client, m: Message):
                                     print(f"✅ Download Successful: {res_file}")
                                 else:
                                     print(f"❌ Download Failed via NRE")
-                                    # Fallback to old method if needed, or raise error
                                     raise Exception("NRE Download Failed")
                             else:
                                 res_file = await helper.download_video(url, cmd, name, check_duration=not cp_encn_video)
@@ -2339,16 +2294,12 @@ async def drm_handler(bot: Client, m: Message):
                             if cp_encn_video and res_file and os.path.exists(res_file):
                                 try:
                                     status_msg = await bot.send_message(channel_id, f"🔐 **Decrypting Classplus Video...**\n`{name1}`")
-                                    # Decrypt in-place
-                                    print(f"DEBUG: URL passed to decrypt: {url}", flush=True)
                                     decrypt_cp_encn_video(res_file, url)
                                     await status_msg.delete()
                                     print(f"✅ Decryption Successful: {res_file}")
                                 except Exception as e_dec:
                                     print(f"❌ Decryption Failed: {e_dec}")
                                     await bot.send_message(channel_id, f"⚠️ Decryption Error: {e_dec}")
-                                    # We don't raise here to allow upload of encrypted file if needed, 
-                                    # but typically it's useless. Let's proceed.
 
                             filename = res_file
                             if prog1:
@@ -2359,42 +2310,32 @@ async def drm_handler(bot: Client, m: Message):
                                 except: pass
                             await helper.send_vid(bot, m, cc, filename, vidwatermark, thumb, name, prog, channel_id, message_thread_id=upload_thread_id)
                             
-                            # Success! Cleanup messages
                             if retry_msg:
-                                try:
-                                    await retry_msg.delete(True)
-                                except:
-                                    pass
+                                try: await retry_msg.delete(True)
+                                except: pass
                             
                             success = True
                             count += 1
                             await asyncio.sleep(1)
-                            break  # Exit retry loop on success
+                            break
                             
                         except Exception as e:
                             if prog:
-                                try:
-                                    await prog.delete(True)
-                                except:
-                                    pass
+                                try: await prog.delete(True)
+                                except: pass
                             if prog1:
-                                try:
-                                    await prog1.delete(True)
-                                except:
-                                    pass
-                            current_error_msg = await bot.send_message(channel_id, f'⚠️**Downloading Failed**⚠️\n**Name** =>> `{str(count).zfill(3)} {name1}`\n**Url** =>> {url}\n\n<blockquote expandable><i><b>Failed Reason: {str(e)}</b></i></blockquote>', disable_web_page_preview=True)
+                                try: await prog1.delete(True)
+                                except: pass
+                            current_error_msg = await bot.send_message(channel_id, f'⚠️**Downloading Failed**️\n**Name** =>> `{str(count).zfill(3)} {name1}`\n**Url** =>> {url}\n\n<blockquote expandable><i><b>Failed Reason: {str(e)}</b></i></blockquote>', disable_web_page_preview=True)
                             
-                            if attempt == 3:  # Last attempt failed
-                                # Clean up retry msg, keep only success/fail
+                            if attempt == 3:
                                 if retry_msg:
-                                    try:
-                                        await retry_msg.delete(True)
-                                    except:
-                                        pass
+                                    try: await retry_msg.delete(True)
+                                    except: pass
                                 count += 1
                                 failed_count += 1
                             else:
-                                await asyncio.sleep(3)  # Wait before retry
+                                await asyncio.sleep(3)
                     
                     if success:
                         continue
@@ -2413,10 +2354,9 @@ async def drm_handler(bot: Client, m: Message):
     video_count = v2_count + mpd_count + m3u8_count + yt_count + drm_count + zip_count + other_count
     if m.document:
         if raw_text7 == "/d":
-            await bot.send_message(channel_id, f"<b>-┈━═.•°✅ Completed ✅°•.═━┈-</b>\n<blockquote><b>🎯Batch Name : {b_name}</b></blockquote>\n<blockquote>🔗 Total URLs: {len(links)} \n┃   ┠🔴 Total Failed URLs: {failed_count}\n┃   ┠🟢 Total Successful URLs: {success_count}\n┃   ┃   ┠🎥 Total Video URLs: {video_count}\n┃   ┃   ┠📄 Total PDF URLs: {pdf_count}\n┃   ┃   ┠📸 Total IMAGE URLs: {img_count}</blockquote>\n")
+            await bot.send_message(channel_id, f"<b>-┈━═.•°✅ Completed ✅°•.═━┈-</b>\n<blockquote><b>🎯Batch Name : {b_name}</b></blockquote>\n<blockquote>🔗 Total URLs: {len(links)} \n┃   🔴 Total Failed URLs: {failed_count}\n┃   ┠🟢 Total Successful URLs: {success_count}\n┃   ┃   ┠🎥 Total Video URLs: {video_count}\n┃   ┃   ┠ Total PDF URLs: {pdf_count}\n┃   ┃   ┠📸 Total IMAGE URLs: {img_count}</blockquote>\n")
         else:
-            await bot.send_message(channel_id, f"<b>-┈━═.•°✅ Completed ✅°•.═━┈-</b>\n<blockquote><b>🎯Batch Name : {b_name}</b></blockquote>\n<blockquote>🔗 Total URLs: {len(links)} \n┃   ┠🔴 Total Failed URLs: {failed_count}\n┃   ┠🟢 Total Successful URLs: {success_count}\n┃   ┃   ┠🎥 Total Video URLs: {video_count}\n┃   ┃   ┠📄 Total PDF URLs: {pdf_count}\n┃   ┃   ┠📸 Total IMAGE URLs: {img_count}</blockquote>\n")
+            await bot.send_message(channel_id, f"<b>-┈━═.•°✅ Completed ✅°•.═━┈-</b>\n<blockquote><b>🎯Batch Name : {b_name}</b></blockquote>\n<blockquote>🔗 Total URLs: {len(links)} \n┃   ┠🔴 Total Failed URLs: {failed_count}\n┃   ┠🟢 Total Successful URLs: {success_count}\n┃   ┃   ┠🎥 Total Video URLs: {video_count}\n┃   ┃   ┠ Total PDF URLs: {pdf_count}\n   ┃   ┠📸 Total IMAGE URLs: {img_count}</blockquote>\n")
             await bot.send_message(m.chat.id, f"<blockquote><b>✅ Your Task is completed, please check your Set Channel📱</b></blockquote>")
-
 
 
