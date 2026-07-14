@@ -1,7 +1,8 @@
 import os
+import subprocess
 
 def get_download_info(url):
-    # 1. Pehle check karo ki kya URL mein .mpd aur * hai (New Format)
+    # 1. Check for new format: *.mpd*KID:KEY
     if ".mpd" in url and "*" in url:
         parts = url.split("*", 1)
         if len(parts) == 2:
@@ -9,25 +10,41 @@ def get_download_info(url):
             key_data = parts[1].strip()
             if ":" in key_data:
                 kid, key = key_data.split(":", 1)
-                # N_m3u8DL-RE ke liye formatted key return karo
                 return clean_url, f"--key {kid.strip()}:{key.strip()}"
     
-    # 2. Fallback: Purana #keysV1= format agar naya format na ho
+    # 2. Fallback for old format: #keysV1=
     url_clean = url.split("#keysV1=")[0]
     keys_part = url.split("#keysV1=")[1] if "#keysV1=" in url else ""
     return url_clean, keys_part
 
 async def download_video_with_nre(mpd, keys_string, name):
-    # Ensure downloads directory exists
     os.makedirs("downloads", exist_ok=True)
     
-    cmd = f'yt-dlp -o "downloads/{name}.mkv" "{mpd}"'
+    # Define output path with .mp4 extension (Telegram prefers mp4)
+    output_file = f"downloads/{name}.mp4"
+    
     if keys_string:
-        # Agar keys hain, toh N_m3u8DL-RE use karo jo DRM decrypt karta hai
+        # Use N_m3u8DL-RE for DRM decryption
         cmd = f'N_m3u8DL-RE "{mpd}" {keys_string} --save-name "{name}" --tmp-dir downloads --save-dir downloads -mt'
+        print(f"🚀 Running N_m3u8DL-RE: {cmd}")
+    else:
+        # Fallback to yt-dlp for non-DRM content
+        cmd = f'yt-dlp -o "{output_file}" "{mpd}"'
+        print(f"🚀 Running yt-dlp: {cmd}")
     
-    print(f"🚀 Running Download Command: {cmd}")
-    os.system(cmd)
+    # Execute command
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
     
-    filename = f"downloads/{name}.mkv"
-    return filename if os.path.exists(filename) else None
+    # Check if .mp4 was created successfully
+    if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
+        print(f"✅ Download Success: {output_file}")
+        return output_file
+        
+    # Sometimes NRE saves as .mkv even if we asked for mp4, check that too
+    mkv_file = f"downloads/{name}.mkv"
+    if os.path.exists(mkv_file) and os.path.getsize(mkv_file) > 0:
+        print(f"✅ Download Success (MKV): {mkv_file}")
+        return mkv_file
+        
+    print(f"❌ Download Failed. Stderr: {result.stderr[:200]}")
+    return None
