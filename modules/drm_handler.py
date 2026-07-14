@@ -630,6 +630,27 @@ async def drm_handler(bot: Client, m: Message):
                      url = url_clean
                      mpd = url_clean
                      keys_string = keys_str
+
+            # ==========================================================
+            # NEW: Universal MPD*KID:KEY Handler (Direct Chat or TXT)
+            # ==========================================================
+            if ".mpd" in url and "*" in url and not mpd:
+                try:
+                    parts = url.split("*", 1)
+                    if len(parts) == 2:
+                        clean_mpd_url = parts[0].strip()
+                        key_data = parts[1].strip()
+                        
+                        if ":" in key_data:
+                            kid, key = key_data.split(":", 1)
+                            # Format keys exactly as your helper expects them
+                            keys_string = f"--key {kid.strip()}:{key.strip()}"
+                            mpd = clean_mpd_url
+                            url = clean_mpd_url
+                            print(f"✅ Universal DRM Parsed: URL={mpd}, Keys={keys_string}")
+                except Exception as e_parse:
+                    print(f"⚠️ Error parsing universal DRM link: {e_parse}")
+            # ==========================================================
             
             # --- FAKE LINK CHECK ---
             if url == "https://media-cdn.classplusapp.com/alisg-cdn-a.classplusapp.com/media-cdn.classplusapp.com/master.m3u8":
