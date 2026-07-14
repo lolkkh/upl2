@@ -195,20 +195,31 @@ async def drm_handler(bot: Client, m: Message):
         return (False, 1, 1)  # Should never reach here
 
     user_id = m.from_user.id
-    if m.document and m.document.file_name.endswith('.txt'):
-        x = await m.download()
-        await bot.send_document(OWNER, x)
-        await m.delete(True)
-        file_name, ext = os.path.splitext(os.path.basename(x))  # Extract filename & extension
+if m.document and m.document.file_name.endswith('.txt'):
+    x = await m.download()
+    await bot.send_document(OWNER, x)
+    await m.delete(True)
+    file_name, ext = os.path.splitext(os.path.basename(x))
+    path = f"./downloads/{m.chat.id}"
+    os.makedirs(path, exist_ok=True)
+    with open(x, "r") as f:
+        content = f.read()
+    lines = content.split("\n")
+    os.remove(x)
+elif m.text:
+    # Direct text message handling
+    text = m.text.strip()
+    
+    # Check if it's a URL
+    if "://" in text:
+        lines = [text]
         path = f"./downloads/{m.chat.id}"
-        with open(x, "r") as f:
-            content = f.read()
-        lines = content.split("\n")
-        os.remove(x)
-    elif m.text and "://" in m.text:
-        lines = [m.text]
+        os.makedirs(path, exist_ok=True)
     else:
+        await m.reply_text("<b>🔹Invalid Input. Please send a valid URL or .txt file</b>")
         return
+else:
+    return
 
     if m.document:
         bot_username = (await bot.get_me()).username
