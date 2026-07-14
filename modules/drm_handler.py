@@ -245,8 +245,7 @@ async def drm_handler(bot: Client, m: Message):
     links = []
     for i in lines:
         if "://" in i:
-            url = i.split("://", 1)[1]
-            links.append(i.split("://", 1))
+            links.append(i)  
             if ".pdf" in url:
                 pdf_count += 1
             elif url.endswith((".png", ".jpeg", ".jpg")):
@@ -649,9 +648,12 @@ async def drm_handler(bot: Client, m: Message):
             # ==========================================================
             # NEW: Universal MPD*KID:KEY Handler (Direct Chat or TXT)
             # ==========================================================
-            if ".mpd" in url and "*" in url and not mpd:
+            # For direct links, url is the full link. For txt, link0 has the content
+            check_url = url if url else link0
+            
+            if ".mpd" in check_url and "*" in check_url and not mpd:
                 try:
-                    parts = url.split("*", 1)
+                    parts = check_url.split("*", 1)
                     if len(parts) == 2:
                         clean_mpd_url = parts[0].strip()
                         key_data = parts[1].strip()
@@ -662,9 +664,11 @@ async def drm_handler(bot: Client, m: Message):
                             keys_string = f"--key {kid.strip()}:{key.strip()}"
                             mpd = clean_mpd_url
                             url = clean_mpd_url
+                            link0 = clean_mpd_url  # Also update link0
                             print(f"✅ Universal DRM Parsed: URL={mpd}, Keys={keys_string}")
                 except Exception as e_parse:
                     print(f"⚠️ Error parsing universal DRM link: {e_parse}")
+            # ==========================================================
             # ==========================================================
             
             # --- FAKE LINK CHECK ---
