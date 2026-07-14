@@ -623,13 +623,14 @@ async def drm_handler(bot: Client, m: Message):
                      url = "https://" + Vxy
             link0 = url
 
-            # CW Helper Integration
-            if "#keysV1=" in url:
+            # CW Helper Integration (Supports both #keysV1= and *.mpd*KID:KEY)
+            if "#keysV1=" in url or (".mpd" in url and "*" in url):
                 url_clean, keys_str = cw_helper.get_download_info(url)
                 if keys_str:
                      url = url_clean
                      mpd = url_clean
                      keys_string = keys_str
+                     print(f"✅ DRM Keys Extracted Successfully: {keys_string}")
 
             # ==========================================================
             # NEW: Universal MPD*KID:KEY Handler (Direct Chat or TXT)
