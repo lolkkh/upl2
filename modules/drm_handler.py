@@ -684,7 +684,15 @@ async def drm_handler(bot: Client, m: Message):
                 failed_count += 1
                 continue
 
-            name1 = links[i][0].replace("(", "[").replace(")", "]").replace("_", "").replace("\t", "").replace(":", "").replace("/", "").replace("+", "").replace("#", "").replace("|", "").replace("@", "").replace("*", "").replace(".", "").replace("https", "").replace("http", "").replace("rickcoder007", "").replace("Rick_Johnson", "").strip()
+            if caption == "/cc4":
+                # Split at http or https case-insensitively
+                parts = re.split(r'https?://', f"{links[i][0]}://{links[i][1]}", maxsplit=1, flags=re.IGNORECASE)
+                name1 = parts[0].strip()
+                # Clean trailing colon or colons/spaces
+                name1 = re.sub(r'[\s:]+$', '', name1)
+            else:
+                name1 = links[i][0].replace("(", "[").replace(")", "]").replace("_", "").replace("\t", "").replace(":", "").replace("/", "").replace("+", "").replace("#", "").replace("|", "").replace("@", "").replace("*", "").replace(".", "").replace("https", "").replace("http", "").replace("rickcoder007", "").replace("Rick_Johnson", "").strip()
+
             # FIX: If name1 matches the protocol (like 'https') or is empty after stripping, assign a default
             if not name1 or name1.lower() in ["https", "http", ""]:
                 name1 = f"Untitled_{int(time.time())}_{str(count).zfill(3)}"
@@ -976,7 +984,7 @@ async def drm_handler(bot: Client, m: Message):
                                     t_name = "Untitled"
                                     v_name = name1
                             
-                                if caption == "/cc1":
+                                if caption == "/cc1" or caption == "/cc4":
                                     credit_link = f'<a href="{globals.CR_LINK}">{CR}</a>'
                                     yt_caption = f"""╭━━━━━━━━━━━╮
 🎥 VIDEO ID: {str(count).zfill(3)}
