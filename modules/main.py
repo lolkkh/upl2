@@ -391,7 +391,11 @@ async def handle_caption(client, callback_query):
         "🌟 **Extracted By : {credit}**</blockquote>\n\n"
         "**Caption Style 3**\n"
         "<blockquote expandable>**{str(count).zfill(3)}.** {name1} [{res}p].{ext}</blockquote>\n\n"
-        "**Send Your Caption Style eg. /cc1 or /cc2 or /cc3**", reply_markup=keyboard)
+        "**Caption Style 4 (Clean title before HTTP)**\n"
+        "<blockquote expandable><b>[🎥] Vid Id</b>: {str(count).zfill(3)}\n"
+        "<b>Title</b>: {v_name}\n"
+        "<b>Batch</b>: {b_name}</blockquote>\n\n"
+        "**Send Your Caption Style eg. /cc1, /cc2, /cc3 or /cc4**", reply_markup=keyboard)
     input_msg = await bot.listen(editable.chat.id)
     try:
         if input_msg.text.lower() == "/cc1":
@@ -400,9 +404,12 @@ async def handle_caption(client, callback_query):
         elif input_msg.text.lower() == "/cc2":
             globals.caption = '/cc2'
             await editable.edit(f"✅ Caption Style 2 Updated!", reply_markup=keyboard)
+        elif input_msg.text.lower() == "/cc4":
+            globals.caption = '/cc4'
+            await editable.edit(f"✅ Caption Style 4 Updated!", reply_markup=keyboard)
         else:
             globals.caption = input_msg.text
-            await editable.edit(f"✅ Caption Style 3 Updated!", reply_markup=keyboard)
+            await editable.edit(f"✅ Custom Caption Style Updated!", reply_markup=keyboard)
             
     except Exception as e:
         await editable.edit(f"<b>❌ Failed to set Caption Style:</b>\n<blockquote expandable>{str(e)}</blockquote>", reply_markup=keyboard)
