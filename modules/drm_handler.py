@@ -204,10 +204,14 @@ async def drm_handler(bot: Client, m: Message):
         file_name, ext = os.path.splitext(os.path.basename(x))
         path = f"./downloads/{m.chat.id}"
         os.makedirs(path, exist_ok=True)
-        with open(x, "r") as f:
+        
+        # FIX: UTF-8 encoding aur har line se \r, \n, spaces hatane ke liye .strip()
+        with open(x, "r", encoding="utf-8") as f:
             content = f.read()
-        lines = content.split("\n")
+        lines = [line.strip() for line in content.split("\n") if line.strip()]
+        
         os.remove(x)
+        
     elif m.text:
         # Direct text message handling
         text = m.text.strip()
@@ -240,7 +244,6 @@ async def drm_handler(bot: Client, m: Message):
         await bot.send_message(m.chat.id, f"<blockquote>__**Oopss! You are not a Premium member\nPLEASE /upgrade YOUR PLAN\nSend me your user id for authorization\nYour User id**__ - `{m.chat.id}`</blockquote>\n")
         return
   
-
     autotopic_mode = False
     pdf_count = 0
     img_count = 0
@@ -254,24 +257,30 @@ async def drm_handler(bot: Client, m: Message):
     
     links = []
     for i in lines:
+        i = i.strip()  # EXTRA SAFETY: Har line se hidden characters hatane ke liye
         if "://" in i:
-            url = i.split("://", 1)[1]
-            links.append(i.split("://", 1))
-            if ".pdf" in url:
+            parts = i.split("://", 1)
+            protocol = parts[0].strip()
+            link_content = parts[1].strip()  # 🔥 CRITICAL FIX: Trailing \r ya spaces hata kar clean URL banata hai
+            
+            links.append([protocol, link_content])  # Clean data store karein
+            
+            # Counting logic ab clean 'link_content' par chalegi (Skip/Fail nahi hoga)
+            if ".pdf" in link_content:
                 pdf_count += 1
-            elif url.endswith((".png", ".jpeg", ".jpg")):
+            elif link_content.endswith((".png", ".jpeg", ".jpg")):
                 img_count += 1
-            elif "v2" in url:
+            elif "v2" in link_content:
                 v2_count += 1
-            elif "mpd" in url:
+            elif "mpd" in link_content:
                 mpd_count += 1
-            elif "m3u8" in url:
+            elif "m3u8" in link_content:
                 m3u8_count += 1
-            elif "drm" in url:
+            elif "drm" in link_content:
                 drm_count += 1
-            elif "youtu" in url:
+            elif "youtu" in link_content:
                 yt_count += 1
-            elif "zip" in url:
+            elif "zip" in link_content:
                 zip_count += 1
             else:
                 other_count += 1
