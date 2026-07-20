@@ -9,7 +9,7 @@ BOT_TOKEN = environ.get("BOT_TOKEN", "")
 
 OWNER = int(environ.get("OWNER", "8727689182"))
 CREDIT = environ.get("CREDIT", '𝐓𝐞𝐜𝐡 𝐱𝐯々')
-CREDIT_LINK = environ.get("CREDIT_LINK", 'https://whatsapp.com/channel/0029VbCUE8230LKHYMCduo13')
+CREDIT_LINK = environ.get("CREDIT_LINK", '')
 cookies_file_path = os.getenv("cookies_file_path", "youtube_cookies.txt")
 
 # MongoDB Configuration
