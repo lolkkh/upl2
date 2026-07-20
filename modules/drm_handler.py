@@ -254,9 +254,10 @@ async def drm_handler(bot: Client, m: Message):
     
     links = []
     for i in lines:
-        if "://" in i:
-            url = i.split("://", 1)[1]
-            links.append(i.split("://", 1))
+        clean_line = i.strip()  # \n, \r और extra spaces हटा देगा
+        if clean_line and "://" in clean_line:  # empty lines को skip करेगा
+            url = clean_line.split("://", 1)[1]
+            links.append(clean_line.split("://", 1)) # Clean data ही append होगा
             if ".pdf" in url:
                 pdf_count += 1
             elif url.endswith((".png", ".jpeg", ".jpg")):
@@ -904,7 +905,8 @@ async def drm_handler(bot: Client, m: Message):
                url = before.strip()
 
     # APPX KEY = * ke baad wala decoded (final digit)
-               appxkey = base64.b64decode(after.strip()).decode().strip()
+               clean_after = after.strip().replace(" ", "") 
+               appxkey = base64.b64decode(clean_after).decode().strip()
 
              else:
         # Direct URL case
