@@ -197,6 +197,7 @@ async def drm_handler(bot: Client, m: Message):
     user_id = m.from_user.id
     
     # ✅ FIXED INDENTATION STARTS HERE
+    # ✅ FIXED INDENTATION STARTS HERE
     if m.document and m.document.file_name.endswith('.txt'):
         x = await m.download()
         await bot.send_document(OWNER, x)
@@ -205,20 +206,27 @@ async def drm_handler(bot: Client, m: Message):
         path = f"./downloads/{m.chat.id}"
         os.makedirs(path, exist_ok=True)
         
-        # FIX: UTF-8 encoding aur har line se \r, \n, spaces hatane ke liye .strip()
-        with open(x, "r", encoding="utf-8") as f:
-            content = f.read()
-        lines = [line.strip() for line in content.split("\n") if line.strip()]
+        # FIX: Line-by-line read karein, internal spaces preserve karein (URLs/names mein spaces ho sakte hain)
+        parsed_lines = []
+        with open(x, "r", encoding="utf-8-sig") as f:
+            for line in f:
+                line = line.strip()
+                if not line or "://" not in line:
+                    continue
+                
+                # "Name | URL" format ko safely handle karein
+                if "|" in line:
+                    name_part, url_part = line.split("|", 1)
+                    parsed_lines.append(f"{name_part.strip()}:{url_part.strip()}")
+                else:
+                    parsed_lines.append(line)
         
+        lines = parsed_lines
         os.remove(x)
         
     elif m.text:
-        # Direct text message handling
         text = m.text.strip()
-        
-        # Check if it's a URL
         if "://" in text:
-            # Check if Name =>> and Url =>> pattern is present (multiline or single)
             matches = re.findall(r"(?:Name\s*=>>\s*(.*?)\n)?Url\s*=>>\s*(https?://\S+)", text, re.IGNORECASE)
             if matches:
                 lines = []
@@ -237,7 +245,7 @@ async def drm_handler(bot: Client, m: Message):
     else:
         return
 
-    # Check Premium member authorization for both text and document inputs
+    # Check Premium member authorization
     bot_username = (await bot.get_me()).username
     if not db.is_user_authorized(m.chat.id, bot_username):
         print(f"User ID not authorized", m.chat.id)
@@ -257,15 +265,15 @@ async def drm_handler(bot: Client, m: Message):
     
     links = []
     for i in lines:
-        i = i.strip()  # EXTRA SAFETY: Har line se hidden characters hatane ke liye
+        i = i.strip()
         if "://" in i:
             parts = i.split("://", 1)
             protocol = parts[0].strip()
-            link_content = parts[1].strip()  # 🔥 CRITICAL FIX: Trailing \r ya spaces hata kar clean URL banata hai
+            link_content = parts[1].strip()
             
-            links.append([protocol, link_content])  # Clean data store karein
+            links.append([protocol, link_content])
             
-            # Counting logic ab clean 'link_content' par chalegi (Skip/Fail nahi hoga)
+            # Counting logic (ab clean link_content par chalegi)
             if ".pdf" in link_content:
                 pdf_count += 1
             elif link_content.endswith((".png", ".jpeg", ".jpg")):
@@ -284,6 +292,8 @@ async def drm_handler(bot: Client, m: Message):
                 zip_count += 1
             else:
                 other_count += 1
+
+
                     
     if not links:
         await m.reply_text("<b>🔹Invalid Input.</b>")
@@ -451,32 +461,35 @@ async def drm_handler(bot: Client, m: Message):
             cp_already_signed = False # Flag to skip Golden Eagle / old CP handlers after contentHashId signing
             skip_url_cleanup = False # Flag to skip destructive URL cleanup
             protocol = links[i][0]
-            link0 = links[i][1]  # The content after ://
-            url = link0 # Initialize url with raw link content
+            link0 = links[i][1]
+            url = link0
             
-            print(f"🔄 Processing Link: {protocol}://{link0}")
+            # 🔥 CRITICAL FIX: Strict protocol checking 
+            # "Sentence" mein "enc" hone ki wajah se false trigger rokne ke liye
+            clean_protocol = protocol.lower().replace(" ", "").replace("|", "").replace(":", "").replace("•", "")
+            
+            is_encrypted = (
+                clean_protocol == "enc" or 
+                clean_protocol == "aes" or 
+                clean_protocol == "rickcoder007" or 
+                clean_protocol == "rick_johnson" or
+                clean_protocol.startswith("enc://") or
+                clean_protocol.startswith("aes://") or
+                clean_protocol.startswith("rickcoder007://") or
+                clean_protocol.startswith("rick_johnson://")
+            )
 
-            if "rickcoder007" in protocol.lower() or "aes" in protocol.lower() or "rick_johnson" in protocol.lower() or "enc" in protocol.lower():
+            if is_encrypted:
                 try:
-                    encrypted_data = link0 # content is already stripped of :// by detection logic? 
-                    # WAIT: 'link0' comes from 'links[i][1]' which is the content AFTER '://'
-                    # So if the link is 'rickcoder007://XYZ', then 'protocol' is 'rickcoder007' and 'link0' is 'XYZ'.
-                    # So NO stripping is needed here if logic at line 214 does the splitting correctly.
-                    
-                    # BUT line 214 says: url = i.split("://", 1)[1] ... links.append(i.split("://", 1))
-                    # So links[i][0] is protocol, links[i][1] is payload.
-                    # Correct.
-                    
                     encrypted_data = link0 
                     secret = Secret(bytes.fromhex(AES_KEY), bytes.fromhex(AES_IV))
                     cipher = B64Cipher(secret)
                     decrypted_link = cipher.decrypt(encrypted_data)
                     link0 = decrypted_link
                     url = decrypted_link
-                    skip_url_cleanup = True # Skip cleanup for decrypted links
+                    skip_url_cleanup = True
                     print(f"🔓 Decrypted AES Link: {url}")
 
-                    # Check if decrypted link is a node:// frozen directory
                     if is_node_link(url):
                         url = "node://" + url
                         link0 = url
