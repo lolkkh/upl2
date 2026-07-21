@@ -915,10 +915,7 @@ async def drm_handler(bot: Client, m: Message):
                     print(f"❌ Appx M3U8 JSON fetch failed: {e}")
                     # Fallback: Agar API fail ho, toh original URL ke saath aage badhe
 
-             enc_url = data_json.get("video_url")
-
-  
-                
+ 
             elif "dragoapi.vercel.app" in url or url.endswith(".m3u8"):
     # Step 1: Hit the URL (it auto-redirects to real HLS)
              r = requests.get(url, timeout=10, allow_redirects=True)
