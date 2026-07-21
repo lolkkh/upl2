@@ -1614,12 +1614,18 @@ async def drm_handler(bot: Client, m: Message):
                     
                     if "appxsignurl" in url:
                         try:
-                            # 🔥 IMPROVED: Retry logic with longer timeout
-                            status_msg = await bot.send_message(channel_id, f"🔄 Fetching PDF info... (Attempt 1/3)")
+                            # 🔥 IMPROVED: Retry with better error handling
+                            status_msg = await bot.send_message(channel_id, f"🔄 Fetching PDF from AppxSignURL...")
                             
-                            for attempt in range(1, 4):
+                            max_retries = 3
+                            for attempt in range(1, max_retries + 1):
                                 try:
-                                    response = requests.get(url.strip(), timeout=30)  # 30 seconds timeout
+                                    # Increased timeout + connection timeout
+                                    response = requests.get(
+                                        url.strip(), 
+                                        timeout=(5, 30),  # (connect_timeout, read_timeout)
+                                        headers={'User-Agent': 'Mozilla/5.0'}
+                                    )
                                     response.raise_for_status()
                                     
                                     if status_msg:
@@ -1634,38 +1640,56 @@ async def drm_handler(bot: Client, m: Message):
                                     pdf_url = data.get("pdf_url")
                                     if pdf_url:
                                         url = pdf_url.strip()
+                                        print(f"✅ Got PDF URL: {url[:80]}...")
                                     else:
-                                        print("No pdf_url found in response JSON.")
+                                        print("⚠️ No pdf_url found in response JSON.")
                                     
                                     # Extract title if available
                                     namef = data.get("title", name1)
                                     need_referer = True
-                                    break  # Success
+                                    break  # Success - exit retry loop
                                     
-                                except requests.exceptions.ReadTimeout:
-                                    if attempt < 3:
+                                except requests.exceptions.ConnectionError as ce:
+                                    if attempt < max_retries:
                                         if status_msg:
-                                            await status_msg.edit_text(f"🔄 Fetching PDF info... (Attempt {attempt+1}/3)")
+                                            await status_msg.edit_text(f"🔄 Connection failed... Retrying ({attempt+1}/{max_retries})")
                                         await asyncio.sleep(3)
                                     else:
-                                        raise Exception("Server timeout after 3 attempts")
-                                except requests.exceptions.ConnectionError:
-                                    if attempt < 3:
+                                        raise Exception(f"Connection failed to AppxSignURL after {max_retries} attempts")
+                                        
+                                except requests.exceptions.ReadTimeout as rt:
+                                    if attempt < max_retries:
                                         if status_msg:
-                                            await status_msg.edit_text(f"🔄 Connection retry... ({attempt+1}/3)")
+                                            await status_msg.edit_text(f" Server slow... Retrying ({attempt+1}/{max_retries})")
                                         await asyncio.sleep(3)
                                     else:
-                                        raise Exception("Connection failed after 3 attempts")
-                                except Exception as e:
-                                    if attempt == 3:
-                                        raise e
-                                    await asyncio.sleep(2)
+                                        raise Exception("Server not responding after 30 seconds (3 attempts)")
+                                        
+                                except requests.exceptions.HTTPError as he:
+                                    if attempt < max_retries:
+                                        if status_msg:
+                                            await status_msg.edit_text(f"⚠️ HTTP Error {he.response.status_code}... Retrying ({attempt+1}/{max_retries})")
+                                        await asyncio.sleep(2)
+                                    else:
+                                        raise Exception(f"HTTP Error: {he}")
+                                        
+                                except json.JSONDecodeError as je:
+                                    raise Exception(f"Invalid JSON response from server: {je}")
                                     
+                        except Exception as e:
+                            print(f"❌ Error fetching AppxSignURL: {e}")
+                            if status_msg:
+                                try:
+                                    await status_msg.edit_text(f"❌ Failed: {str(e)[:50]}")
+                                except:
+                                    pass
+                            # Fallback: continue with original URL
+                            need_referer = True
+                            namef = name1
                         except Exception as e:
                             print(f"Error fetching AppxSignURL JSON: {e}")
                             need_referer = True
                             namef = name1
-                            # Continue with original URL
                     
 
                     elif "static-db.appx.co.in" in url:
