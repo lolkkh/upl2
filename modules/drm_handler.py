@@ -887,14 +887,14 @@ async def drm_handler(bot: Client, m: Message):
              if len(parts) == 2:
               base_url = parts[0].strip()
               appxkey = parts[1].strip()   # e.g. 8822682
-              response = requests.get(base_url, timeout=10, allow_redirects=True)
+              response = requests.get(base_url, timeout=30, allow_redirects=True)
               final_url = response.url.strip()  # resolved CDN link
 
         # Step 2: Overwrite url with the resolved link
               url = final_url
               print(f"⚡ DragoAPI link detected → base_url={base_url}, appxkey={appxkey}")
             elif "dragoapi.vercel.app" in url and ".mkv" in url:
-              r = requests.get(url, timeout=10, allow_redirects=True)
+              r = requests.get(url, timeout=30, allow_redirects=True)
 
     # Step 2: Final resolved URL
               final_url = r.url
@@ -913,7 +913,27 @@ async def drm_handler(bot: Client, m: Message):
             
             
             elif ".m3u8" in url and "appx" in url:
-             r = requests.get(url, timeout=10)
+                # 🔥 FIX: 3 second ka delay taaki Vercel server batch processing mein block na kare
+                await asyncio.sleep(3)
+                try:
+                    # requests ki jagah cloudscraper use karein (better bypass)
+                    scraper = cloudscraper.create_scraper()
+                    r = requests.get(url, timeout=30)
+                    data_json = r.json()
+
+                    enc_url = data_json.get("video_url")
+
+                    if "*" in enc_url:
+                        before, after = enc_url.split("*", 1)
+                        url = before.strip()
+                        appxkey = base64.b64decode(after.strip()).decode().strip()
+                    else:
+                        url = enc_url.strip()
+                        appxkey = data_json.get("encryption_key")
+                except Exception as e:
+                    print(f"❌ Appx M3U8 JSON fetch failed: {e}")
+                    # Fallback: Agar API fail ho, toh original URL ke saath aage badhe
+             r = requests.get(url, timeout=30)
              data_json = r.json()
 
              enc_url = data_json.get("video_url")
@@ -938,7 +958,7 @@ async def drm_handler(bot: Client, m: Message):
                 
             elif "dragoapi.vercel.app" in url or url.endswith(".m3u8"):
     # Step 1: Hit the URL (it auto-redirects to real HLS)
-             r = requests.get(url, timeout=10, allow_redirects=True)
+             r = requests.get(url, timeout=30, allow_redirects=True)
 
     # Step 2: Final resolved URL
              final_url = r.url
@@ -1611,54 +1631,103 @@ async def drm_handler(bot: Client, m: Message):
                     final_url = url
                     need_referer = False
                     namef = name1
-             #       if "appxsignurl.vercel.app/appx/" in url:
-             #       if "appxsignurl" in url:
+                    
                     if "appxsignurl" in url:
                         try:
-                            # Step 1: Directly use the original URL
-                            response = requests.get(url.strip(), timeout=10)
-                            data = response.json()
-
-                            # Step 2: Extract actual PDF URL
-                            pdf_url = data.get("pdf_url")
-                            if pdf_url:
-                                url = pdf_url.strip()   # overwrite with real downloadable link
-                            else:
-                                print("No pdf_url found in response JSON.")
-                                # fallback: keep original URL
-                                # url remains unchanged
-
-                            # Step 3: Extract title if available
-                            namef = data.get("title", name1)
-
-                            # Step 4: Mark referer requirement
-                            need_referer = True
+                            # 🔥 FIX 1: 3 second ka delay taaki Vercel server batch processing mein block na kare
+                            await asyncio.sleep(3)
+                            
+                            status_msg = await bot.send_message(channel_id, f"🔄 Fetching PDF info from AppxSignURL...")
+                            
+                            # 🔥 FIX 2: 'requests' ki jagah 'cloudscraper' use karein (Vercel limits ko bypass karta hai)
+                            scraper = cloudscraper.create_scraper()
+                            
+                            success = False
+                            for attempt in range(1, 4):
+                                try:
+                                    # Timeout 60 seconds kar diya hai taaki server ko respond karne ka poora time mile
+                                    response = scraper.get(url.strip(), timeout=60)
+                                    
+                                    if response.status_code == 200:
+                                        data = response.json()
+                                        
+                                        if status_msg:
+                                            try: await status_msg.delete()
+                                            except: pass
+                                        
+                                        # Extract actual PDF URL
+                                        pdf_url = data.get("pdf_url")
+                                        if pdf_url:
+                                            url = pdf_url.strip()
+                                            print(f"✅ Got PDF URL: {url[:80]}...")
+                                        else:
+                                            print("⚠️ No pdf_url found in response JSON.")
+                                        
+                                        # Extract title if available
+                                        namef = data.get("title", name1)
+                                        need_referer = True
+                                        success = True
+                                        break  # Success! Retry loop se bahar
+                                    else:
+                                        raise Exception(f"HTTP Error: {response.status_code}")
+                                        
+                                except requests.exceptions.ReadTimeout:
+                                    if attempt < 3:
+                                        if status_msg:
+                                            await status_msg.edit_text(f"⏳ Server slow... Retrying ({attempt+1}/3)")
+                                        await asyncio.sleep(4)  # Retry se pehle 4 sec wait
+                                    else:
+                                        raise Exception("Server not responding after 60 seconds (3 attempts)")
+                                        
+                                except requests.exceptions.ConnectionError:
+                                    if attempt < 3:
+                                        if status_msg:
+                                            await status_msg.edit_text(f"🔄 Connection failed... Retrying ({attempt+1}/3)")
+                                        await asyncio.sleep(4)
+                                    else:
+                                        raise Exception("Connection failed after 3 attempts")
+                                        
+                                except Exception as e:
+                                    if attempt < 3:
+                                        if status_msg:
+                                            await status_msg.edit_text(f"⚠️ Error: {str(e)[:30]}... Retrying ({attempt+1}/3)")
+                                        await asyncio.sleep(3)
+                                    else:
+                                        raise e
+                                        
+                            if not success:
+                                raise Exception("Failed to fetch data after 3 attempts")
+                                
                         except Exception as e:
-                            print(f"Error fetching AppxSignURL JSON: {e}")
+                            print(f"❌ Error fetching AppxSignURL JSON: {e}")
+                            if 'status_msg' in locals():
+                                try:
+                                    await status_msg.edit_text(f"⚠️ API Failed, using fallback...")
+                                    await asyncio.sleep(2)
+                                    await status_msg.delete()
+                                except: pass
+                            
+                            # 🔥 FIX 3: SAFE FALLBACK - Agar API fail bhi ho jaye, toh original URL se download try kare
+                            # Isse puri batch fail nahi hogi, sirf ye link direct download try karega
                             need_referer = True
                             namef = name1
-                    
 
                     elif "static-db.appx.co.in" in url:
-                           
-                           need_referer = True
-                           namef = name1
-                    elif "static-db-v2.appx.co.in" in url:
-                           
-                           need_referer = True
-                           namef = name1
-
+                        need_referer = True
+                        namef = name1
+                        
                     elif "static-db-v2.appx.co.in" in url:
                         filename = urlparse(url).path.split("/")[-1]
                         url = f"https://appx-content-v2.classx.co.in/paid_course4/{filename}"
                         need_referer = True
                         namef = name1
+                        
                     else:
                         if topic == "/yes":
                             namef = f'{v_name}'
                         else:
                             try:
-                                response = requests.get(url)
+                                response = requests.get(url, timeout=15)
                                 if response.status_code == 200:
                                     try:
                                         data = response.json()
@@ -1670,12 +1739,13 @@ async def drm_handler(bot: Client, m: Message):
                             except:
                                 namef = name1
                         need_referer = True
+                        
                     if "cwmediabkt99" in url:
                         namef = name1
-                        max_retries = 15  # Define the maximum number of retries
-                        retry_delay = 4  # Delay between retries in seconds
-                        success = False  # To track whether the download was successful
-                        failure_msgs = []  # To keep track of failure messages
+                        max_retries = 15
+                        retry_delay = 4
+                        success = False
+                        failure_msgs = []
                         
                         for attempt in range(max_retries):
                             try:
@@ -1687,7 +1757,7 @@ async def drm_handler(bot: Client, m: Message):
                                 if response.status_code == 200:
                                     with open(f'{namef}.pdf', 'wb') as file:
                                         file.write(response.content)
-                                    await asyncio.sleep(retry_delay)  # Optional, to prevent spamming
+                                    await asyncio.sleep(retry_delay)
                                     if upload_thread_id:
                                         copy = await send_document_with_fallback(bot, chat_id=channel_id, document=f'{namef}.pdf', caption=cc1, message_thread_id=upload_thread_id)
                                     else:
@@ -1695,7 +1765,7 @@ async def drm_handler(bot: Client, m: Message):
                                     count += 1
                                     os.remove(f'{namef}.pdf')
                                     success = True
-                                    break  # Exit the retry loop if successful
+                                    break
                                 else:
                                     failure_msg = await m.reply_text(f"Attempt {attempt + 1}/{max_retries} failed: {response.status_code} {response.reason}")
                                     failure_msgs.append(failure_msg)
@@ -1708,7 +1778,6 @@ async def drm_handler(bot: Client, m: Message):
                     else:
                         namef = name1
                         try:
-                            # -----------------------------------------
                             if need_referer:
                                 referer = "https://player.akamai.net.in/"
                                 ua = "Dalvik/2.1.0 (Linux; U; Android 10; Pixel 4a Build/QD4A.200805.003)"
@@ -1717,15 +1786,8 @@ async def drm_handler(bot: Client, m: Message):
                                 cmd = f'yt-dlp -o "{namef}.pdf" "{url}"'
 
                             download_cmd = f"{cmd} -R 25 --fragment-retries 25"
-
-                            # -----------------------------------------
-                            # DOWNLOAD PDF
-                            # -----------------------------------------
                             os.system(download_cmd)
 
-                            # -----------------------------------------
-                            # SEND PDF
-                            # -----------------------------------------
                             copy = await send_document_with_fallback(bot,
                                 chat_id=channel_id,
                                 document=f"{namef}.pdf",
@@ -2412,4 +2474,3 @@ async def drm_handler(bot: Client, m: Message):
     else:
         # Send task completion notification for direct text URLs
         await bot.send_message(m.chat.id, f"<b>-┈━═.•°✅ Completed ✅°•.═━┈-</b>\n<blockquote>🔗 Total URLs: {len(links)} \n┃   ┠🔴 Total Failed URLs: {failed_count}\n┃   ┠🟢 Total Successful URLs: {success_count}\n┃   ┃   ┠🎥 Total Video URLs: {video_count}\n┃   ┃   ┠📄 Total PDF URLs: {pdf_count}\n┃   ┃   ┠📸 Total IMAGE URLs: {img_count}</blockquote>\n")
-
