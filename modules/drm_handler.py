@@ -887,14 +887,14 @@ async def drm_handler(bot: Client, m: Message):
              if len(parts) == 2:
               base_url = parts[0].strip()
               appxkey = parts[1].strip()   # e.g. 8822682
-              response = requests.get(base_url, timeout=10, allow_redirects=True)
+              response = requests.get(base_url, timeout=30, allow_redirects=True)
               final_url = response.url.strip()  # resolved CDN link
 
         # Step 2: Overwrite url with the resolved link
               url = final_url
               print(f"⚡ DragoAPI link detected → base_url={base_url}, appxkey={appxkey}")
             elif "dragoapi.vercel.app" in url and ".mkv" in url:
-              r = requests.get(url, timeout=10, allow_redirects=True)
+              r = requests.get(url, timeout=30, allow_redirects=True)
 
     # Step 2: Final resolved URL
               final_url = r.url
@@ -913,7 +913,7 @@ async def drm_handler(bot: Client, m: Message):
             
             
             elif ".m3u8" in url and "appx" in url:
-             r = requests.get(url, timeout=10)
+             r = requests.get(url, timeout=30)
              data_json = r.json()
 
              enc_url = data_json.get("video_url")
@@ -938,7 +938,7 @@ async def drm_handler(bot: Client, m: Message):
                 
             elif "dragoapi.vercel.app" in url or url.endswith(".m3u8"):
     # Step 1: Hit the URL (it auto-redirects to real HLS)
-             r = requests.get(url, timeout=10, allow_redirects=True)
+             r = requests.get(url, timeout=30, allow_redirects=True)
 
     # Step 2: Final resolved URL
              final_url = r.url
