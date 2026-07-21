@@ -1611,32 +1611,61 @@ async def drm_handler(bot: Client, m: Message):
                     final_url = url
                     need_referer = False
                     namef = name1
-             #       if "appxsignurl.vercel.app/appx/" in url:
-             #       if "appxsignurl" in url:
+                    
                     if "appxsignurl" in url:
                         try:
-                            # Step 1: Directly use the original URL
-                            response = requests.get(url.strip(), timeout=10)
-                            data = response.json()
-
-                            # Step 2: Extract actual PDF URL
-                            pdf_url = data.get("pdf_url")
-                            if pdf_url:
-                                url = pdf_url.strip()   # overwrite with real downloadable link
-                            else:
-                                print("No pdf_url found in response JSON.")
-                                # fallback: keep original URL
-                                # url remains unchanged
-
-                            # Step 3: Extract title if available
-                            namef = data.get("title", name1)
-
-                            # Step 4: Mark referer requirement
-                            need_referer = True
+                            # 🔥 IMPROVED: Retry logic with longer timeout
+                            status_msg = await bot.send_message(channel_id, f"🔄 Fetching PDF info... (Attempt 1/3)")
+                            
+                            for attempt in range(1, 4):
+                                try:
+                                    response = requests.get(url.strip(), timeout=30)  # 30 seconds timeout
+                                    response.raise_for_status()
+                                    
+                                    if status_msg:
+                                        try:
+                                            await status_msg.delete()
+                                        except:
+                                            pass
+                                    
+                                    data = response.json()
+                                    
+                                    # Extract PDF URL
+                                    pdf_url = data.get("pdf_url")
+                                    if pdf_url:
+                                        url = pdf_url.strip()
+                                    else:
+                                        print("No pdf_url found in response JSON.")
+                                    
+                                    # Extract title if available
+                                    namef = data.get("title", name1)
+                                    need_referer = True
+                                    break  # Success
+                                    
+                                except requests.exceptions.ReadTimeout:
+                                    if attempt < 3:
+                                        if status_msg:
+                                            await status_msg.edit_text(f"🔄 Fetching PDF info... (Attempt {attempt+1}/3)")
+                                        await asyncio.sleep(3)
+                                    else:
+                                        raise Exception("Server timeout after 3 attempts")
+                                except requests.exceptions.ConnectionError:
+                                    if attempt < 3:
+                                        if status_msg:
+                                            await status_msg.edit_text(f"🔄 Connection retry... ({attempt+1}/3)")
+                                        await asyncio.sleep(3)
+                                    else:
+                                        raise Exception("Connection failed after 3 attempts")
+                                except Exception as e:
+                                    if attempt == 3:
+                                        raise e
+                                    await asyncio.sleep(2)
+                                    
                         except Exception as e:
                             print(f"Error fetching AppxSignURL JSON: {e}")
                             need_referer = True
                             namef = name1
+                            # Continue with original URL
                     
 
                     elif "static-db.appx.co.in" in url:
