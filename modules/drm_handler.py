@@ -899,18 +899,21 @@ async def drm_handler(bot: Client, m: Message):
                 try:
                     # requests ki jagah cloudscraper use karein (better bypass)
                     scraper = cloudscraper.create_scraper()
-                    r = scraper.get(url, timeout=60)  # Timeout 10 se 60 kar diya
+                    r = scraper.get(url, timeout=60)  # Timeout 60 seconds
                     data_json = r.json()
-
                     enc_url = data_json.get("video_url")
-
-                    if "*" in enc_url:
+                    
+                    # 🔥 CRITICAL: Check if enc_url is not None
+                    if enc_url and "*" in enc_url:
                         before, after = enc_url.split("*", 1)
                         url = before.strip()
                         appxkey = base64.b64decode(after.strip()).decode().strip()
-                    else:
+                    elif enc_url:
                         url = enc_url.strip()
                         appxkey = data_json.get("encryption_key")
+                    else:
+                        print(f"⚠️ No video_url in response. Using original URL.")
+                        
                 except Exception as e:
                     print(f"❌ Appx M3U8 JSON fetch failed: {e}")
                     # Fallback: Agar API fail ho, toh original URL ke saath aage badhe
