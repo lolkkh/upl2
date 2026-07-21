@@ -197,6 +197,7 @@ async def drm_handler(bot: Client, m: Message):
     user_id = m.from_user.id
     
     # ✅ FIXED INDENTATION STARTS HERE
+    # ✅ FIXED INDENTATION STARTS HERE
     if m.document and m.document.file_name.endswith('.txt'):
         x = await m.download()
         await bot.send_document(OWNER, x)
@@ -204,17 +205,28 @@ async def drm_handler(bot: Client, m: Message):
         file_name, ext = os.path.splitext(os.path.basename(x))
         path = f"./downloads/{m.chat.id}"
         os.makedirs(path, exist_ok=True)
-        with open(x, "r") as f:
-            content = f.read()
-        lines = content.split("\n")
-        os.remove(x)
-    elif m.text:
-        # Direct text message handling
-        text = m.text.strip()
         
-        # Check if it's a URL
+        # FIX: Line-by-line read karein, internal spaces preserve karein (URLs/names mein spaces ho sakte hain)
+        parsed_lines = []
+        with open(x, "r", encoding="utf-8-sig") as f:
+            for line in f:
+                line = line.strip()
+                if not line or "://" not in line:
+                    continue
+                
+                # "Name | URL" format ko safely handle karein
+                if "|" in line:
+                    name_part, url_part = line.split("|", 1)
+                    parsed_lines.append(f"{name_part.strip()}:{url_part.strip()}")
+                else:
+                    parsed_lines.append(line)
+        
+        lines = parsed_lines
+        os.remove(x)
+        
+    elif m.text:
+        text = m.text.strip()
         if "://" in text:
-            # Check if Name =>> and Url =>> pattern is present (multiline or single)
             matches = re.findall(r"(?:Name\s*=>>\s*(.*?)\n)?Url\s*=>>\s*(https?://\S+)", text, re.IGNORECASE)
             if matches:
                 lines = []
@@ -233,14 +245,13 @@ async def drm_handler(bot: Client, m: Message):
     else:
         return
 
-    # Check Premium member authorization for both text and document inputs
+    # Check Premium member authorization
     bot_username = (await bot.get_me()).username
     if not db.is_user_authorized(m.chat.id, bot_username):
         print(f"User ID not authorized", m.chat.id)
         await bot.send_message(m.chat.id, f"<blockquote>__**Oopss! You are not a Premium member\nPLEASE /upgrade YOUR PLAN\nSend me your user id for authorization\nYour User id**__ - `{m.chat.id}`</blockquote>\n")
         return
   
-
     autotopic_mode = False
     pdf_count = 0
     img_count = 0
@@ -254,27 +265,35 @@ async def drm_handler(bot: Client, m: Message):
     
     links = []
     for i in lines:
+        i = i.strip()
         if "://" in i:
-            url = i.split("://", 1)[1]
-            links.append(i.split("://", 1))
-            if ".pdf" in url:
+            parts = i.split("://", 1)
+            protocol = parts[0].strip()
+            link_content = parts[1].strip()
+            
+            links.append([protocol, link_content])
+            
+            # Counting logic (ab clean link_content par chalegi)
+            if ".pdf" in link_content:
                 pdf_count += 1
-            elif url.endswith((".png", ".jpeg", ".jpg")):
+            elif link_content.endswith((".png", ".jpeg", ".jpg")):
                 img_count += 1
-            elif "v2" in url:
+            elif "v2" in link_content:
                 v2_count += 1
-            elif "mpd" in url:
+            elif "mpd" in link_content:
                 mpd_count += 1
-            elif "m3u8" in url:
+            elif "m3u8" in link_content:
                 m3u8_count += 1
-            elif "drm" in url:
+            elif "drm" in link_content:
                 drm_count += 1
-            elif "youtu" in url:
+            elif "youtu" in link_content:
                 yt_count += 1
-            elif "zip" in url:
+            elif "zip" in link_content:
                 zip_count += 1
             else:
                 other_count += 1
+
+
                     
     if not links:
         await m.reply_text("<b>🔹Invalid Input.</b>")
@@ -894,30 +913,29 @@ async def drm_handler(bot: Client, m: Message):
             
             
             elif ".m3u8" in url and "appx" in url:
-                # 🔥 FIX: 3 second ka delay taaki Vercel server batch processing mein block na kare
-                await asyncio.sleep(3)
-                try:
-                    # requests ki jagah cloudscraper use karein (better bypass)
-                    scraper = cloudscraper.create_scraper()
-                    r = scraper.get(url, timeout=60)  # Timeout 60 seconds
-                    data_json = r.json()
-                    enc_url = data_json.get("video_url")
-                    
-                    # 🔥 CRITICAL: Check if enc_url is not None
-                    if enc_url and "*" in enc_url:
-                        before, after = enc_url.split("*", 1)
-                        url = before.strip()
-                        appxkey = base64.b64decode(after.strip()).decode().strip()
-                    elif enc_url:
-                        url = enc_url.strip()
-                        appxkey = data_json.get("encryption_key")
-                    else:
-                        print(f"⚠️ No video_url in response. Using original URL.")
-                        
-                except Exception as e:
-                    print(f"❌ Appx M3U8 JSON fetch failed: {e}")
-                    # Fallback: Agar API fail ho, toh original URL ke saath aage badhe
- 
+             r = requests.get(url, timeout=10)
+             data_json = r.json()
+
+             enc_url = data_json.get("video_url")
+
+             if "*" in enc_url:
+        # URL = * se pehle wala
+               before, after = enc_url.split("*", 1)
+
+    # URL = * se pehle wala
+               url = before.strip()
+
+    # APPX KEY = * ke baad wala decoded (final digit)
+               appxkey = base64.b64decode(after.strip()).decode().strip()
+
+             else:
+        # Direct URL case
+              url = enc_url.strip()
+              appxkey = data_json.get("encryption_key")
+
+
+  
+                
             elif "dragoapi.vercel.app" in url or url.endswith(".m3u8"):
     # Step 1: Hit the URL (it auto-redirects to real HLS)
              r = requests.get(url, timeout=10, allow_redirects=True)
@@ -1593,74 +1611,32 @@ async def drm_handler(bot: Client, m: Message):
                     final_url = url
                     need_referer = False
                     namef = name1
-                    
+             #       if "appxsignurl.vercel.app/appx/" in url:
+             #       if "appxsignurl" in url:
                     if "appxsignurl" in url:
                         try:
-                            await asyncio.sleep(3)
-                            status_msg = await bot.send_message(channel_id, f"🔄 Fetching PDF info...")
-                            
-                            scraper = cloudscraper.create_scraper()
-                            success = False
-                            
-                            for attempt in range(1, 4):
-                                try:
-                                    response = await asyncio.wait_for(
-                                        asyncio.to_thread(scraper.get, url.strip(), timeout=30),
-                                        timeout=35
-                                    )
-                                    
-                                    if response.status_code == 200:
-                                        data = response.json()
-                                        
-                                        # 🔥 CRITICAL: Check if pdf_url exists and is valid
-                                        pdf_url = data.get("pdf_url")
-                                        if pdf_url and pdf_url.strip() and pdf_url.startswith("http"):
-                                            url = pdf_url.strip()
-                                            namef = data.get("title", name1)
-                                            need_referer = True
-                                            success = True
-                                            
-                                            if status_msg:
-                                                await status_msg.edit_text(f"✅ PDF URL fetched!")
-                                                await asyncio.sleep(1)
-                                                await status_msg.delete()
-                                            break
-                                        else:
-                                            print(f"⚠️ Invalid pdf_url in response: {pdf_url}")
-                                            # 🔥 If API fails, use original URL
-                                            url = final_url
-                                            need_referer = True
-                                            success = True
-                                            break
-                                    else:
-                                        raise Exception(f"HTTP {response.status_code}")
-                                        
-                                except asyncio.TimeoutError:
-                                    if attempt < 3:
-                                        if status_msg:
-                                            await status_msg.edit_text(f"⏳ Timeout... ({attempt+1}/3)")
-                                        await asyncio.sleep(3)
-                                    else:
-                                        raise Exception("Server timeout")
-                                        
-                            if not success:
-                                url = final_url  # Use original URL
-                                need_referer = True
-                                
+                            # Step 1: Directly use the original URL
+                            response = requests.get(url.strip(), timeout=10)
+                            data = response.json()
+
+                            # Step 2: Extract actual PDF URL
+                            pdf_url = data.get("pdf_url")
+                            if pdf_url:
+                                url = pdf_url.strip()   # overwrite with real downloadable link
+                            else:
+                                print("No pdf_url found in response JSON.")
+                                # fallback: keep original URL
+                                # url remains unchanged
+
+                            # Step 3: Extract title if available
+                            namef = data.get("title", name1)
+
+                            # Step 4: Mark referer requirement
+                            need_referer = True
                         except Exception as e:
-                            print(f"❌ AppxSignURL Error: {e}")
-                            if 'status_msg' in locals():
-                                try:
-                                    await status_msg.edit_text(f"❌ API Failed - Using direct URL")
-                                    await asyncio.sleep(2)
-                                    await status_msg.delete()
-                                except: pass
-                            
-                            # 🔥 IMPORTANT: Always use original URL on error
-                            url = final_url
+                            print(f"Error fetching AppxSignURL JSON: {e}")
                             need_referer = True
                             namef = name1
-                    
                     
 
                     elif "static-db.appx.co.in" in url:
