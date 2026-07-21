@@ -913,6 +913,26 @@ async def drm_handler(bot: Client, m: Message):
             
             
             elif ".m3u8" in url and "appx" in url:
+                # 🔥 FIX: 3 second ka delay taaki Vercel server batch processing mein block na kare
+                await asyncio.sleep(3)
+                try:
+                    # requests ki jagah cloudscraper use karein (better bypass)
+                    scraper = cloudscraper.create_scraper()
+                    r = scraper.get(url, timeout=60)  # Timeout 30 se 60 kar diya
+                    data_json = r.json()
+
+                    enc_url = data_json.get("video_url")
+
+                    if "*" in enc_url:
+                        before, after = enc_url.split("*", 1)
+                        url = before.strip()
+                        appxkey = base64.b64decode(after.strip()).decode().strip()
+                    else:
+                        url = enc_url.strip()
+                        appxkey = data_json.get("encryption_key")
+                except Exception as e:
+                    print(f"❌ Appx M3U8 JSON fetch failed: {e}")
+                    # Fallback: Agar API fail ho, toh original URL ke saath aage badhe
              r = requests.get(url, timeout=30)
              data_json = r.json()
 
@@ -1614,104 +1634,100 @@ async def drm_handler(bot: Client, m: Message):
                     
                     if "appxsignurl" in url:
                         try:
-                            # 🔥 IMPROVED: Retry with better error handling
-                            status_msg = await bot.send_message(channel_id, f"🔄 Fetching PDF from AppxSignURL...")
+                            # 🔥 FIX 1: 3 second ka delay taaki Vercel server batch processing mein block na kare
+                            await asyncio.sleep(3)
                             
-                            max_retries = 3
-                            for attempt in range(1, max_retries + 1):
+                            status_msg = await bot.send_message(channel_id, f"🔄 Fetching PDF info from AppxSignURL...")
+                            
+                            # 🔥 FIX 2: 'requests' ki jagah 'cloudscraper' use karein (Vercel limits ko bypass karta hai)
+                            scraper = cloudscraper.create_scraper()
+                            
+                            success = False
+                            for attempt in range(1, 4):
                                 try:
-                                    # Increased timeout + connection timeout
-                                    response = requests.get(
-                                        url.strip(), 
-                                        timeout=(5, 30),  # (connect_timeout, read_timeout)
-                                        headers={'User-Agent': 'Mozilla/5.0'}
-                                    )
-                                    response.raise_for_status()
+                                    # Timeout 60 seconds kar diya hai taaki server ko respond karne ka poora time mile
+                                    response = scraper.get(url.strip(), timeout=60)
                                     
-                                    if status_msg:
-                                        try:
-                                            await status_msg.delete()
-                                        except:
-                                            pass
-                                    
-                                    data = response.json()
-                                    
-                                    # Extract PDF URL
-                                    pdf_url = data.get("pdf_url")
-                                    if pdf_url:
-                                        url = pdf_url.strip()
-                                        print(f"✅ Got PDF URL: {url[:80]}...")
-                                    else:
-                                        print("⚠️ No pdf_url found in response JSON.")
-                                    
-                                    # Extract title if available
-                                    namef = data.get("title", name1)
-                                    need_referer = True
-                                    break  # Success - exit retry loop
-                                    
-                                except requests.exceptions.ConnectionError as ce:
-                                    if attempt < max_retries:
+                                    if response.status_code == 200:
+                                        data = response.json()
+                                        
                                         if status_msg:
-                                            await status_msg.edit_text(f"🔄 Connection failed... Retrying ({attempt+1}/{max_retries})")
+                                            try: await status_msg.delete()
+                                            except: pass
+                                        
+                                        # Extract actual PDF URL
+                                        pdf_url = data.get("pdf_url")
+                                        if pdf_url:
+                                            url = pdf_url.strip()
+                                            print(f"✅ Got PDF URL: {url[:80]}...")
+                                        else:
+                                            print("⚠️ No pdf_url found in response JSON.")
+                                        
+                                        # Extract title if available
+                                        namef = data.get("title", name1)
+                                        need_referer = True
+                                        success = True
+                                        break  # Success! Retry loop se bahar
+                                    else:
+                                        raise Exception(f"HTTP Error: {response.status_code}")
+                                        
+                                except requests.exceptions.ReadTimeout:
+                                    if attempt < 3:
+                                        if status_msg:
+                                            await status_msg.edit_text(f"⏳ Server slow... Retrying ({attempt+1}/3)")
+                                        await asyncio.sleep(4)  # Retry se pehle 4 sec wait
+                                    else:
+                                        raise Exception("Server not responding after 60 seconds (3 attempts)")
+                                        
+                                except requests.exceptions.ConnectionError:
+                                    if attempt < 3:
+                                        if status_msg:
+                                            await status_msg.edit_text(f"🔄 Connection failed... Retrying ({attempt+1}/3)")
+                                        await asyncio.sleep(4)
+                                    else:
+                                        raise Exception("Connection failed after 3 attempts")
+                                        
+                                except Exception as e:
+                                    if attempt < 3:
+                                        if status_msg:
+                                            await status_msg.edit_text(f"⚠️ Error: {str(e)[:30]}... Retrying ({attempt+1}/3)")
                                         await asyncio.sleep(3)
                                     else:
-                                        raise Exception(f"Connection failed to AppxSignURL after {max_retries} attempts")
+                                        raise e
                                         
-                                except requests.exceptions.ReadTimeout as rt:
-                                    if attempt < max_retries:
-                                        if status_msg:
-                                            await status_msg.edit_text(f" Server slow... Retrying ({attempt+1}/{max_retries})")
-                                        await asyncio.sleep(3)
-                                    else:
-                                        raise Exception("Server not responding after 30 seconds (3 attempts)")
-                                        
-                                except requests.exceptions.HTTPError as he:
-                                    if attempt < max_retries:
-                                        if status_msg:
-                                            await status_msg.edit_text(f"⚠️ HTTP Error {he.response.status_code}... Retrying ({attempt+1}/{max_retries})")
-                                        await asyncio.sleep(2)
-                                    else:
-                                        raise Exception(f"HTTP Error: {he}")
-                                        
-                                except json.JSONDecodeError as je:
-                                    raise Exception(f"Invalid JSON response from server: {je}")
-                                    
+                            if not success:
+                                raise Exception("Failed to fetch data after 3 attempts")
+                                
                         except Exception as e:
-                            print(f"❌ Error fetching AppxSignURL: {e}")
-                            if status_msg:
+                            print(f"❌ Error fetching AppxSignURL JSON: {e}")
+                            if 'status_msg' in locals():
                                 try:
-                                    await status_msg.edit_text(f"❌ Failed: {str(e)[:50]}")
-                                except:
-                                    pass
-                            # Fallback: continue with original URL
+                                    await status_msg.edit_text(f"⚠️ API Failed, using fallback...")
+                                    await asyncio.sleep(2)
+                                    await status_msg.delete()
+                                except: pass
+                            
+                            # 🔥 FIX 3: SAFE FALLBACK - Agar API fail bhi ho jaye, toh original URL se download try kare
+                            # Isse puri batch fail nahi hogi, sirf ye link direct download try karega
                             need_referer = True
                             namef = name1
-                        except Exception as e:
-                            print(f"Error fetching AppxSignURL JSON: {e}")
-                            need_referer = True
-                            namef = name1
-                    
 
                     elif "static-db.appx.co.in" in url:
-                           
-                           need_referer = True
-                           namef = name1
-                    elif "static-db-v2.appx.co.in" in url:
-                           
-                           need_referer = True
-                           namef = name1
-
+                        need_referer = True
+                        namef = name1
+                        
                     elif "static-db-v2.appx.co.in" in url:
                         filename = urlparse(url).path.split("/")[-1]
                         url = f"https://appx-content-v2.classx.co.in/paid_course4/{filename}"
                         need_referer = True
                         namef = name1
+                        
                     else:
                         if topic == "/yes":
                             namef = f'{v_name}'
                         else:
                             try:
-                                response = requests.get(url)
+                                response = requests.get(url, timeout=15)
                                 if response.status_code == 200:
                                     try:
                                         data = response.json()
@@ -1723,12 +1739,13 @@ async def drm_handler(bot: Client, m: Message):
                             except:
                                 namef = name1
                         need_referer = True
+                        
                     if "cwmediabkt99" in url:
                         namef = name1
-                        max_retries = 15  # Define the maximum number of retries
-                        retry_delay = 4  # Delay between retries in seconds
-                        success = False  # To track whether the download was successful
-                        failure_msgs = []  # To keep track of failure messages
+                        max_retries = 15
+                        retry_delay = 4
+                        success = False
+                        failure_msgs = []
                         
                         for attempt in range(max_retries):
                             try:
@@ -1740,7 +1757,7 @@ async def drm_handler(bot: Client, m: Message):
                                 if response.status_code == 200:
                                     with open(f'{namef}.pdf', 'wb') as file:
                                         file.write(response.content)
-                                    await asyncio.sleep(retry_delay)  # Optional, to prevent spamming
+                                    await asyncio.sleep(retry_delay)
                                     if upload_thread_id:
                                         copy = await send_document_with_fallback(bot, chat_id=channel_id, document=f'{namef}.pdf', caption=cc1, message_thread_id=upload_thread_id)
                                     else:
@@ -1748,7 +1765,7 @@ async def drm_handler(bot: Client, m: Message):
                                     count += 1
                                     os.remove(f'{namef}.pdf')
                                     success = True
-                                    break  # Exit the retry loop if successful
+                                    break
                                 else:
                                     failure_msg = await m.reply_text(f"Attempt {attempt + 1}/{max_retries} failed: {response.status_code} {response.reason}")
                                     failure_msgs.append(failure_msg)
@@ -1761,7 +1778,6 @@ async def drm_handler(bot: Client, m: Message):
                     else:
                         namef = name1
                         try:
-                            # -----------------------------------------
                             if need_referer:
                                 referer = "https://player.akamai.net.in/"
                                 ua = "Dalvik/2.1.0 (Linux; U; Android 10; Pixel 4a Build/QD4A.200805.003)"
@@ -1770,15 +1786,8 @@ async def drm_handler(bot: Client, m: Message):
                                 cmd = f'yt-dlp -o "{namef}.pdf" "{url}"'
 
                             download_cmd = f"{cmd} -R 25 --fragment-retries 25"
-
-                            # -----------------------------------------
-                            # DOWNLOAD PDF
-                            # -----------------------------------------
                             os.system(download_cmd)
 
-                            # -----------------------------------------
-                            # SEND PDF
-                            # -----------------------------------------
                             copy = await send_document_with_fallback(bot,
                                 chat_id=channel_id,
                                 document=f"{namef}.pdf",
