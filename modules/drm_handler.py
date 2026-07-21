@@ -1594,69 +1594,71 @@ async def drm_handler(bot: Client, m: Message):
                     
                     if "appxsignurl" in url:
                         try:
-                            # 🔥 FIX 1: 3 second ka delay taaki Vercel server batch processing mein block na kare
                             await asyncio.sleep(3)
-                            status_msg = await bot.send_message(channel_id, f"🔄 Fetching PDF info from AppxSignURL...")
+                            status_msg = await bot.send_message(channel_id, f"🔄 Fetching PDF info...")
                             
-                            # 🔥 FIX 2: 'requests' ki jagah 'cloudscraper' use karein (Vercel limits ko bypass karta hai)
                             scraper = cloudscraper.create_scraper()
                             success = False
                             
                             for attempt in range(1, 4):
                                 try:
-                                    # 🔥 FIX 3: Timeout 10 se badhakar 60 seconds kar diya hai
-                                    response = scraper.get(url.strip(), timeout=60)
+                                    response = await asyncio.wait_for(
+                                        asyncio.to_thread(scraper.get, url.strip(), timeout=30),
+                                        timeout=35
+                                    )
                                     
                                     if response.status_code == 200:
                                         data = response.json()
-                                        if status_msg:
-                                            try: await status_msg.delete()
-                                            except: pass
                                         
-                                        # Extract actual PDF URL
+                                        # 🔥 CRITICAL: Check if pdf_url exists and is valid
                                         pdf_url = data.get("pdf_url")
-                                        if pdf_url:
+                                        if pdf_url and pdf_url.strip() and pdf_url.startswith("http"):
                                             url = pdf_url.strip()
-                                        
-                                        # Extract title if available
-                                        namef = data.get("title", name1)
-                                        need_referer = True
-                                        success = True
-                                        break  # Success! Retry loop se bahar
+                                            namef = data.get("title", name1)
+                                            need_referer = True
+                                            success = True
+                                            
+                                            if status_msg:
+                                                await status_msg.edit_text(f"✅ PDF URL fetched!")
+                                                await asyncio.sleep(1)
+                                                await status_msg.delete()
+                                            break
+                                        else:
+                                            print(f"⚠️ Invalid pdf_url in response: {pdf_url}")
+                                            # 🔥 If API fails, use original URL
+                                            url = final_url
+                                            need_referer = True
+                                            success = True
+                                            break
                                     else:
-                                        raise Exception(f"HTTP Error: {response.status_code}")
+                                        raise Exception(f"HTTP {response.status_code}")
                                         
-                                except requests.exceptions.ReadTimeout:
+                                except asyncio.TimeoutError:
                                     if attempt < 3:
                                         if status_msg:
-                                            await status_msg.edit_text(f"⏳ Server slow... Retrying ({attempt+1}/3)")
-                                        await asyncio.sleep(4)  # Retry se pehle 4 sec wait
-                                    else:
-                                        raise Exception("Server not responding after 60 seconds (3 attempts)")
-                                        
-                                except Exception as e:
-                                    if attempt < 3:
-                                        if status_msg:
-                                            await status_msg.edit_text(f"⚠️ Error: {str(e)[:30]}... Retrying ({attempt+1}/3)")
+                                            await status_msg.edit_text(f"⏳ Timeout... ({attempt+1}/3)")
                                         await asyncio.sleep(3)
                                     else:
-                                        raise e
+                                        raise Exception("Server timeout")
                                         
                             if not success:
-                                raise Exception("Failed to fetch data after 3 attempts")
+                                url = final_url  # Use original URL
+                                need_referer = True
                                 
                         except Exception as e:
-                            print(f"❌ Error fetching AppxSignURL JSON: {e}")
+                            print(f"❌ AppxSignURL Error: {e}")
                             if 'status_msg' in locals():
                                 try:
-                                    await status_msg.edit_text(f"⚠️ API Failed, using fallback...")
+                                    await status_msg.edit_text(f"❌ API Failed - Using direct URL")
                                     await asyncio.sleep(2)
                                     await status_msg.delete()
                                 except: pass
                             
-                            # 🔥 FIX 4: SAFE FALLBACK - Agar API fail bhi ho jaye, toh original URL se download try kare
+                            # 🔥 IMPORTANT: Always use original URL on error
+                            url = final_url
                             need_referer = True
                             namef = name1
+                    
                     
 
                     elif "static-db.appx.co.in" in url:
