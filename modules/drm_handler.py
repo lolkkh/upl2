@@ -894,26 +894,28 @@ async def drm_handler(bot: Client, m: Message):
             
             
             elif ".m3u8" in url and "appx" in url:
-             r = requests.get(url, timeout=10)
-             data_json = r.json()
+                # 🔥 FIX: 3 second ka delay taaki Vercel server batch processing mein block na kare
+                await asyncio.sleep(3)
+                try:
+                    # requests ki jagah cloudscraper use karein (better bypass)
+                    scraper = cloudscraper.create_scraper()
+                    r = scraper.get(url, timeout=60)  # Timeout 10 se 60 kar diya
+                    data_json = r.json()
+
+                    enc_url = data_json.get("video_url")
+
+                    if "*" in enc_url:
+                        before, after = enc_url.split("*", 1)
+                        url = before.strip()
+                        appxkey = base64.b64decode(after.strip()).decode().strip()
+                    else:
+                        url = enc_url.strip()
+                        appxkey = data_json.get("encryption_key")
+                except Exception as e:
+                    print(f"❌ Appx M3U8 JSON fetch failed: {e}")
+                    # Fallback: Agar API fail ho, toh original URL ke saath aage badhe
 
              enc_url = data_json.get("video_url")
-
-             if "*" in enc_url:
-        # URL = * se pehle wala
-               before, after = enc_url.split("*", 1)
-
-    # URL = * se pehle wala
-               url = before.strip()
-
-    # APPX KEY = * ke baad wala decoded (final digit)
-               appxkey = base64.b64decode(after.strip()).decode().strip()
-
-             else:
-        # Direct URL case
-              url = enc_url.strip()
-              appxkey = data_json.get("encryption_key")
-
 
   
                 
@@ -1592,30 +1594,70 @@ async def drm_handler(bot: Client, m: Message):
                     final_url = url
                     need_referer = False
                     namef = name1
-             #       if "appxsignurl.vercel.app/appx/" in url:
-             #       if "appxsignurl" in url:
+                    
                     if "appxsignurl" in url:
                         try:
-                            # Step 1: Directly use the original URL
-                            response = requests.get(url.strip(), timeout=10)
-                            data = response.json()
-
-                            # Step 2: Extract actual PDF URL
-                            pdf_url = data.get("pdf_url")
-                            if pdf_url:
-                                url = pdf_url.strip()   # overwrite with real downloadable link
-                            else:
-                                print("No pdf_url found in response JSON.")
-                                # fallback: keep original URL
-                                # url remains unchanged
-
-                            # Step 3: Extract title if available
-                            namef = data.get("title", name1)
-
-                            # Step 4: Mark referer requirement
-                            need_referer = True
+                            # 🔥 FIX 1: 3 second ka delay taaki Vercel server batch processing mein block na kare
+                            await asyncio.sleep(3)
+                            status_msg = await bot.send_message(channel_id, f"🔄 Fetching PDF info from AppxSignURL...")
+                            
+                            # 🔥 FIX 2: 'requests' ki jagah 'cloudscraper' use karein (Vercel limits ko bypass karta hai)
+                            scraper = cloudscraper.create_scraper()
+                            success = False
+                            
+                            for attempt in range(1, 4):
+                                try:
+                                    # 🔥 FIX 3: Timeout 10 se badhakar 60 seconds kar diya hai
+                                    response = scraper.get(url.strip(), timeout=60)
+                                    
+                                    if response.status_code == 200:
+                                        data = response.json()
+                                        if status_msg:
+                                            try: await status_msg.delete()
+                                            except: pass
+                                        
+                                        # Extract actual PDF URL
+                                        pdf_url = data.get("pdf_url")
+                                        if pdf_url:
+                                            url = pdf_url.strip()
+                                        
+                                        # Extract title if available
+                                        namef = data.get("title", name1)
+                                        need_referer = True
+                                        success = True
+                                        break  # Success! Retry loop se bahar
+                                    else:
+                                        raise Exception(f"HTTP Error: {response.status_code}")
+                                        
+                                except requests.exceptions.ReadTimeout:
+                                    if attempt < 3:
+                                        if status_msg:
+                                            await status_msg.edit_text(f"⏳ Server slow... Retrying ({attempt+1}/3)")
+                                        await asyncio.sleep(4)  # Retry se pehle 4 sec wait
+                                    else:
+                                        raise Exception("Server not responding after 60 seconds (3 attempts)")
+                                        
+                                except Exception as e:
+                                    if attempt < 3:
+                                        if status_msg:
+                                            await status_msg.edit_text(f"⚠️ Error: {str(e)[:30]}... Retrying ({attempt+1}/3)")
+                                        await asyncio.sleep(3)
+                                    else:
+                                        raise e
+                                        
+                            if not success:
+                                raise Exception("Failed to fetch data after 3 attempts")
+                                
                         except Exception as e:
-                            print(f"Error fetching AppxSignURL JSON: {e}")
+                            print(f"❌ Error fetching AppxSignURL JSON: {e}")
+                            if 'status_msg' in locals():
+                                try:
+                                    await status_msg.edit_text(f"⚠️ API Failed, using fallback...")
+                                    await asyncio.sleep(2)
+                                    await status_msg.delete()
+                                except: pass
+                            
+                            # 🔥 FIX 4: SAFE FALLBACK - Agar API fail bhi ho jaye, toh original URL se download try kare
                             need_referer = True
                             namef = name1
                     
