@@ -917,7 +917,6 @@ async def drm_handler(bot: Client, m: Message):
                 except Exception as e:
                     print(f"❌ Appx M3U8 JSON fetch failed: {e}")
                     # Fallback: Agar API fail ho, toh original URL ke saath aage badhe
-
  
             elif "dragoapi.vercel.app" in url or url.endswith(".m3u8"):
     # Step 1: Hit the URL (it auto-redirects to real HLS)
