@@ -936,17 +936,47 @@ async def drm_handler(bot: Client, m: Message):
 
   
                 
-            elif "dragoapi.vercel.app" in url or url.endswith(".m3u8"):
-    # Step 1: Hit the URL (it auto-redirects to real HLS)
-             r = requests.get(url, timeout=10, allow_redirects=True)
+            elif url.endswith(".m3u8"):
+                try:
+                    # Step 1: Fetch the m3u8 content to check if it's a Master Playlist
+                    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+                    r = requests.get(url, headers=headers, timeout=15, allow_redirects=True)
+                    
+                    # Step 2: If it's a Master Playlist, parse and select the correct resolution
+                    if "#EXT-X-STREAM-INF" in r.text:
+                        lines = r.text.split('\n')
+                        res_map = {
+                            "144": "256x144", "240": "426x240", "360": "640x360",
+                            "480": "854x480", "720": "1280x720", "1080": "1920x1080"
+                        }
+                        target_res = res_map.get(str(raw_text2), "854x480") # Default to 480p
+                        
+                        selected_url = None
+                        for i, line in enumerate(lines):
+                            if "#EXT-X-STREAM-INF" in line and "RESOLUTION=" in line:
+                                res_match = re.search(r'RESOLUTION=(\d+x\d+)', line)
+                                if res_match and target_res in res_match.group(1):
+                                    if i + 1 < len(lines):
+                                        media_url = lines[i+1].strip()
+                                        if media_url and not media_url.startswith("#"):
+                                            selected_url = urllib.parse.urljoin(url, media_url)
+                                            break
+                        
+                        if selected_url:
+                            url = selected_url
+                            print(f"✅ Resolved Master Playlist to {raw_text2}p: {url}")
+                        else:
+                            print("⚠️ Could not find matching resolution in Master Playlist, using default.")
+                    else:
+                        # Not a master playlist, just use the redirected URL if any
+                        url = r.url.strip()
+                        
+                except Exception as e:
+                    print(f"⚠️ Error parsing m3u8: {e}")
+                    pass
 
-    # Step 2: Final resolved URL
-             final_url = r.url
-
-    # Step 3: Store directly in url for downloading
-             url = final_url.strip()
-
-    # Step 4: No referer needed for this pattern
+                # Step 3: Use FFmpeg for reliable HLS download (prevents yt-dlp hanging on CloudFront)
+                cmd = f'ffmpeg -y -user_agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" -i "{url}" -c copy -bsf:a aac_adtstoasc "{name}.mp4"'
              
 
             # ==========================
